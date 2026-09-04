@@ -47,3 +47,10 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Ignore large files and build outputs
+android/
+ios/
+**/*.apk
+**/*.bin
+**/*.aab

@@ -54,5 +54,11 @@
     "typescript": "~5.9.2",
     "zod": "^3.25.76",
     "zod-validation-error": "^3.4.0"
+  },
+  "dependencies": {
+    "@react-native-community/cli": "^20.2.0",
+    "expo-speech": "~14.0.8",
+    "react-native-signature-canvas": "^5.1.1",
+    "react-native-webview": "^14.0.1"
   }
 }

@@ -1,5 +1,7 @@
 import { Redirect } from 'expo-router';
 
 export default function Index() {
-  return <Redirect href="/(tabs)" />;
+  // Temporarily redirect to Scribble prototype screen for testing
+  // @ts-ignore
+  return <Redirect href="/standalone-scribble" />;
 }

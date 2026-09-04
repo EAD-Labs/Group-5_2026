@@ -9,7 +9,6 @@
     "start": "npm run dev --workspace=@workspace/ankguru"
   },
   "private": true,
-  "dependencies": {},
   "devDependencies": {
     "prettier": "^3.9.6",
     "typescript": "~5.9.3"
