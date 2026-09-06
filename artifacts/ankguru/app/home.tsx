@@ -284,7 +284,7 @@ function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
   const submitAnswer = (userAnswer) => {
     if (feedback) return;
     const correct = userAnswer === question.answer;
-    setFeedback({ correct });
+    setFeedback({ correct, userAnswer });
     feedbackTimeout.current = setTimeout(() => onAnswer(correct), 1800);
   };
 
@@ -345,6 +345,11 @@ function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
               <View style={{ marginLeft: 14, flex: 1 }}>
                 <Text style={styles.feedbackTitle}>{feedback.correct ? 'Correct! बरोबर!' : 'Wrong! चुकीचे!'}</Text>
                 <Text style={styles.feedbackSub}>Answer: {question.answer} ({question.answerMarathi})</Text>
+                {feedback.userAnswer !== undefined && (
+                  <Text style={[styles.feedbackSub, { marginTop: 4, fontStyle: 'italic', opacity: 0.9, fontSize: 13 }]}>
+                    (Detected: {feedback.userAnswer})
+                  </Text>
+                )}
               </View>
             </View>
           )}
