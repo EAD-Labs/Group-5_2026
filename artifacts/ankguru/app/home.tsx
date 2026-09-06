@@ -362,6 +362,12 @@ function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
 // ═════════════════════════════════════════════════════════════════════
 // MCQ PANEL
 // ═════════════════════════════════════════════════════════════════════
+
+const toDevanagari = (num) => {
+  const digits = ['०','१','२','३','४','५','६','७','८','९'];
+  return num.toString().split('').map(d => digits[parseInt(d)]).join('');
+};
+
 function MCQPanel({ question, onSelect, color }) {
   const options = React.useMemo(() => generateMCQOptions(question.answer), [question]);
   return (
@@ -375,7 +381,7 @@ function MCQPanel({ question, onSelect, color }) {
             pressed && { backgroundColor: color, transform: [{ scale: 0.95 }] },
           ]}
         >
-          <Text style={styles.mcqText}>{opt}</Text>
+          <Text style={styles.mcqText}>{toDevanagari(opt)}</Text>
           <Text style={styles.mcqMarathi}>{MARATHI_NUMBERS[opt - 1] || opt}</Text>
         </Pressable>
       ))}
