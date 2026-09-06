@@ -14,6 +14,13 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Buffer } from 'buffer';
 import { getMlHtml } from '../utils/mlHtml';
 
+export const toDevanagari = (str) => {
+  if (str === undefined || str === null) return '';
+  const digits = ['०','१','२','३','४','५','६','७','८','९'];
+  return str.toString().replace(/[0-9]/g, match => digits[parseInt(match)]);
+};
+
+
 // ─── Constants ───────────────────────────────────────────────────────
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CANVAS_HEIGHT = Dimensions.get('window').height * 0.32;
@@ -305,19 +312,19 @@ function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
         <View style={styles.progressBar}>
           <View style={[styles.progressFill, { width: progressPct + '%', backgroundColor: modeInfo.color }]} />
         </View>
-        <Text style={styles.progressText}>Question {qNumber} of {total}</Text>
+        <Text style={styles.progressText}>Question {toDevanagari(qNumber)} of {toDevanagari(total)}</Text>
 
         <View style={styles.questionCard}>
           {mode === 'voice' ? (
             <>
               <Text style={styles.qLabel}>What is:</Text>
-              <Text style={styles.qText}>{question.display}</Text>
+              <Text style={styles.qText}>{toDevanagari(question.display)}</Text>
               <Text style={styles.qHint}>Speak the answer in English</Text>
             </>
           ) : (
             <>
               <Text style={styles.qLabel}>{mode === 'scribble' ? 'Solve & Draw the answer:' : 'Listen to the question'}</Text>
-              <Text style={styles.qText}>{question.display}</Text>
+              <Text style={styles.qText}>{toDevanagari(question.display)}</Text>
               <Pressable onPress={speakQuestion} style={styles.speakBtn}>
                 <Feather name={isSpeaking ? 'volume-2' : 'play-circle'} size={28} color={isSpeaking ? modeInfo.color : '#8A969E'} />
                 <Text style={[styles.speakText, isSpeaking && { color: modeInfo.color }]}>
@@ -344,10 +351,10 @@ function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
               <Feather name={feedback.correct ? 'check-circle' : 'x-circle'} size={36} color="#FFF" />
               <View style={{ marginLeft: 14, flex: 1 }}>
                 <Text style={styles.feedbackTitle}>{feedback.correct ? 'Correct! बरोबर!' : 'Wrong! चुकीचे!'}</Text>
-                <Text style={styles.feedbackSub}>Answer: {question.answer} ({question.answerMarathi})</Text>
+                <Text style={styles.feedbackSub}>Answer: {toDevanagari(question.answer)} ({question.answerMarathi})</Text>
                 {feedback.userAnswer !== undefined && (
                   <Text style={[styles.feedbackSub, { marginTop: 4, fontStyle: 'italic', opacity: 0.9, fontSize: 13 }]}>
-                    (Detected: {feedback.userAnswer})
+                    (Detected: {toDevanagari(feedback.userAnswer)})
                   </Text>
                 )}
               </View>
@@ -362,11 +369,6 @@ function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
 // ═════════════════════════════════════════════════════════════════════
 // MCQ PANEL
 // ═════════════════════════════════════════════════════════════════════
-
-const toDevanagari = (num) => {
-  const digits = ['०','१','२','३','४','५','६','७','८','९'];
-  return num.toString().split('').map(d => digits[parseInt(d)]).join('');
-};
 
 function MCQPanel({ question, onSelect, color }) {
   const options = React.useMemo(() => generateMCQOptions(question.answer), [question]);
