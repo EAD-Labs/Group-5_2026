@@ -49,5 +49,5 @@ Thumbs.db
 .local/
 android/
 gradle_debug.log
-*.bin
+
 .easignore

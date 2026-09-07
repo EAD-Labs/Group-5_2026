@@ -17,7 +17,11 @@
       "supportsTablet": false
     },
     "android": {
-      "package": "com.thunder25beast.ankguru"
+      "package": "com.thunder25beast.ankguru",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
