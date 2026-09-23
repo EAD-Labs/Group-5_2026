@@ -114,7 +114,7 @@ function generateMCQOptions(correct) {
 // ─── Screens ─────────────────────────────────────────────────────────
 const MODE_DATA = [
   { key: 'mcq', title: 'Listen & Choose', subtitle: 'ऐका आणि निवडा', desc: 'App speaks Marathi, pick the right answer', icon: 'grid', color: '#F6A64A', bg: '#FFF8EE' },
-  { key: 'scribble', title: 'Listen & Draw', subtitle: 'ऐका आणि लिहा', desc: 'App speaks, you draw the number', icon: 'edit-2', color: '#48A995', bg: '#EEFBF7' },
+  { key: 'scribble', title: 'Listen & Draw', subtitle: 'ऐका आणि लिहा', desc: 'App speaks, you draw in Devanagari', icon: 'edit-2', color: '#48A995', bg: '#EEFBF7' },
   { key: 'voice', title: 'Look & Speak', subtitle: 'पहा आणि बोला', desc: 'See question, speak answer in English (offline)', icon: 'mic', color: '#7184E6', bg: '#F0F0FF' },
 ];
 
@@ -323,7 +323,7 @@ function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
             </>
           ) : (
             <>
-              <Text style={styles.qLabel}>{mode === 'scribble' ? 'Solve & Draw the answer:' : 'Listen to the question'}</Text>
+              <Text style={styles.qLabel}>{mode === 'scribble' ? 'Solve & Draw the answer in Devanagari:' : 'Listen to the question'}</Text>
               <Text style={styles.qText}>{toDevanagari(question.display)}</Text>
               <Pressable onPress={speakQuestion} style={styles.speakBtn}>
                 <Feather name={isSpeaking ? 'volume-2' : 'play-circle'} size={28} color={isSpeaking ? modeInfo.color : '#8A969E'} />
