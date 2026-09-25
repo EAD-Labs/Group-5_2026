@@ -228,23 +228,54 @@ function parseEnglishNumber(text) {
   return null;
 }
 
-// ─── Dynamic Math Generation ─────────────────────────────────────────
-function generateQuestion(maxAnswer = 99) {
-  const answer = Math.floor(Math.random() * maxAnswer) + 1; // 1 to maxAnswer
-  const a = Math.floor(Math.random() * answer);
-  const b = answer - a;
-  const tens_a = Math.floor(a / 10);
-  const ones_a = a % 10;
-  const tens_b = Math.floor(b / 10);
-  const ones_b = b % 10;
+// ─── Level Data ──────────────────────────────────────────────────────
+const LEVEL_DATA = [
+  { key: 1, title: 'Level 1', subtitle: 'पातळी १', desc: 'Addition (बेरीज)', ops: ['+'], maxNum: 50, icon: 'star', color: '#4CAF50', bg: '#E8F5E9' },
+  { key: 2, title: 'Level 2', subtitle: 'पातळी २', desc: 'Addition & Subtraction (बेरीज व वजाबाकी)', ops: ['+', '-'], maxNum: 99, icon: 'trending-up', color: '#FF9800', bg: '#FFF3E0' },
+  { key: 3, title: 'Level 3', subtitle: 'पातळी ३', desc: 'Add, Subtract & Multiply (गुणाकारसहित)', ops: ['+', '-', '×'], maxNum: 99, icon: 'zap', color: '#E91E63', bg: '#FCE4EC' },
+];
 
-  // Build Marathi spoken form for TTS
+const MARATHI_OPS = { '+': 'अधिक', '-': 'वजा', '×': 'गुणिले' };
+
+// ─── Dynamic Math Generation ─────────────────────────────────────────
+function generateQuestion(level = 1) {
+  const lvl = LEVEL_DATA.find(l => l.key === level) || LEVEL_DATA[0];
+  const ops = lvl.ops;
+  const op = ops[Math.floor(Math.random() * ops.length)];
+
+  let a, b, answer;
+
+  if (op === '+') {
+    answer = Math.floor(Math.random() * Math.min(lvl.maxNum, 99)) + 1;
+    a = Math.floor(Math.random() * answer);
+    b = answer - a;
+  } else if (op === '-') {
+    // a - b = answer, where answer >= 1 and a <= 99
+    a = Math.floor(Math.random() * 89) + 10; // 10 to 98
+    b = Math.floor(Math.random() * (a - 1)) + 1; // 1 to a-1
+    answer = a - b;
+    if (answer < 1 || answer > 99) { a = 15; b = 7; answer = 8; }
+  } else {
+    // Multiplication: a × b = answer, answer <= 99
+    const pairs = [];
+    for (let i = 2; i <= 9; i++) {
+      for (let j = 2; j <= 9; j++) {
+        if (i * j <= 99) pairs.push([i, j]);
+      }
+    }
+    const pair = pairs[Math.floor(Math.random() * pairs.length)];
+    a = pair[0];
+    b = pair[1];
+    answer = a * b;
+  }
+
   const marathiA = a === 0 ? MARATHI_DIGITS[0] : (MARATHI_NUMBERS[a - 1] || String(a));
   const marathiB = b === 0 ? MARATHI_DIGITS[0] : (MARATHI_NUMBERS[b - 1] || String(b));
+  const marathiOp = MARATHI_OPS[op] || op;
 
   return {
-    display: a + ' + ' + b + ' = ?',
-    marathi: marathiA + ' अधिक ' + marathiB,
+    display: a + ' ' + op + ' ' + b + ' = ?',
+    marathi: marathiA + ' ' + marathiOp + ' ' + marathiB,
     answer,
     answerMarathi: MARATHI_NUMBERS[answer - 1] || String(answer),
   };
@@ -275,13 +306,19 @@ const MODE_DATA = [
 export default function AnkGuruHome() {
   const [screen, setScreen] = useState('home');
   const [mode, setMode] = useState('mcq');
+  const [level, setLevel] = useState(1);
   const [questions, setQuestions] = useState([]);
   const [qIndex, setQIndex] = useState(0);
   const [score, setScore] = useState(0);
 
-  const startGame = (selectedMode) => {
+  const selectMode = (selectedMode) => {
     setMode(selectedMode);
-    const qs = Array.from({ length: NUM_QUESTIONS }, () => generateQuestion(99));
+    setScreen('level');
+  };
+
+  const startGame = (selectedLevel) => {
+    setLevel(selectedLevel);
+    const qs = Array.from({ length: NUM_QUESTIONS }, () => generateQuestion(selectedLevel));
     setQuestions(qs);
     setQIndex(0);
     setScore(0);
@@ -297,8 +334,9 @@ export default function AnkGuruHome() {
     }
   };
 
-  if (screen === 'home') return <HomeScreen onStart={startGame} />;
-  if (screen === 'summary') return <SummaryScreen score={score} total={NUM_QUESTIONS} onRestart={() => startGame(mode)} onGoHome={() => setScreen('home')} />;
+  if (screen === 'home') return <HomeScreen onStart={selectMode} />;
+  if (screen === 'level') return <LevelScreen mode={mode} onSelect={startGame} onBack={() => setScreen('home')} />;
+  if (screen === 'summary') return <SummaryScreen score={score} total={NUM_QUESTIONS} level={level} onRestart={() => startGame(level)} onGoHome={() => setScreen('home')} />;
 
   const q = questions[qIndex];
   if (!q) return null;
@@ -306,11 +344,12 @@ export default function AnkGuruHome() {
   return (
     <PracticeScreen
       mode={mode}
+      level={level}
       question={q}
       qNumber={qIndex + 1}
       total={NUM_QUESTIONS}
       onAnswer={handleAnswer}
-      onBack={() => setScreen('home')}
+      onBack={() => setScreen('level')}
     />
   );
 }
@@ -376,10 +415,77 @@ function HomeScreen({ onStart }) {
   );
 }
 
+
+// ═════════════════════════════════════════════════════════════════════
+// LEVEL SELECTION SCREEN
+// ═════════════════════════════════════════════════════════════════════
+function LevelScreen({ mode, onSelect, onBack }) {
+  const modeInfo = MODE_DATA.find(m => m.key === mode);
+  const cardAnims = useRef(LEVEL_DATA.map(() => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    Animated.stagger(100, cardAnims.map(a =>
+      Animated.spring(a, { toValue: 1, useNativeDriver: true, tension: 65, friction: 8 })
+    )).start();
+  }, []);
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+      <View style={styles.homeContainer}>
+        <View style={styles.levelHeader}>
+          <Pressable onPress={onBack} style={styles.backBtn}>
+            <Feather name="arrow-left" size={22} color="#17324D" />
+          </Pressable>
+          <View style={{ alignItems: 'center', flex: 1 }}>
+            <View style={[styles.modeIconCircle, { backgroundColor: modeInfo.color, width: 38, height: 38, borderRadius: 12 }]}>
+              <Feather name={modeInfo.icon} size={20} color="#FFF" />
+            </View>
+            <Text style={[styles.brandText, { fontSize: 22, marginTop: 6 }]}>{modeInfo.title}</Text>
+            <Text style={styles.homeSubtitle}>Choose difficulty • कठिणता निवडा</Text>
+          </View>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <View style={styles.cardsContainer}>
+          {LEVEL_DATA.map((lv, i) => {
+            const translateY = cardAnims[i].interpolate({ inputRange: [0, 1], outputRange: [40, 0] });
+            const opacity = cardAnims[i];
+            return (
+              <Animated.View key={lv.key} style={{ opacity, transform: [{ translateY }] }}>
+                <Pressable
+                  onPress={() => onSelect(lv.key)}
+                  style={({ pressed }) => [
+                    styles.modeCard,
+                    { backgroundColor: lv.bg, borderColor: lv.color },
+                    pressed && styles.cardPressed,
+                  ]}
+                >
+                  <View style={[styles.modeIconCircle, { backgroundColor: lv.color }]}>
+                    <Feather name={lv.icon} size={26} color="#FFF" />
+                  </View>
+                  <View style={styles.modeCardText}>
+                    <Text style={[styles.modeTitle, { color: lv.color }]}>{lv.title}</Text>
+                    <Text style={styles.modeSubtitle}>{lv.subtitle}</Text>
+                    <Text style={styles.modeDesc}>{lv.desc}</Text>
+                  </View>
+                  <Feather name="chevron-right" size={22} color={lv.color} />
+                </Pressable>
+              </Animated.View>
+            );
+          })}
+        </View>
+
+        <Text style={styles.footerText}>5 questions per session • Answers 1-99</Text>
+      </View>
+    </SafeAreaView>
+  );
+}
+
 // ═════════════════════════════════════════════════════════════════════
 // PRACTICE SCREEN
 // ═════════════════════════════════════════════════════════════════════
-function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
+function PracticeScreen({ mode, level, question, qNumber, total, onAnswer, onBack }) {
   const [feedback, setFeedback] = useState(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const feedbackTimeout = useRef(null);
@@ -456,7 +562,7 @@ function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
           <Pressable onPress={onBack} style={styles.backBtn}>
             <Feather name="arrow-left" size={22} color="#17324D" />
           </Pressable>
-          <Text style={[styles.practiceTitle, { color: modeInfo.color }]}>{modeInfo.title}</Text>
+          <Text style={[styles.practiceTitle, { color: modeInfo.color }]}>{modeInfo.title} • L{level}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -936,7 +1042,7 @@ function VoicePanel({ question, onResult, color }) {
 // ═════════════════════════════════════════════════════════════════════
 // SUMMARY SCREEN
 // ═════════════════════════════════════════════════════════════════════
-function SummaryScreen({ score, total, onRestart, onGoHome }) {
+function SummaryScreen({ score, total, level, onRestart, onGoHome }) {
   const pct = Math.round((score / total) * 100);
   const emoji = pct === 100 ? '🏆' : pct >= 60 ? '🎉' : '💪';
   const message = pct === 100 ? 'Perfect! शाबास!' : pct >= 60 ? 'Great Job! छान!' : 'Keep Practicing! पुन्हा प्रयत्न करा!';
@@ -953,6 +1059,7 @@ function SummaryScreen({ score, total, onRestart, onGoHome }) {
         <Animated.View style={[styles.summaryCard, { transform: [{ scale: scaleAnim }] }]}>
           <Text style={styles.summaryEmoji}>{emoji}</Text>
           <Text style={styles.summaryTitle}>Session Complete!</Text>
+          <Text style={{ fontSize: 14, color: '#7A8994', fontWeight: '600', marginTop: 2 }}>Level {level} • {LEVEL_DATA.find(l => l.key === level)?.desc || ''}</Text>
           <Text style={styles.summaryMessage}>{message}</Text>
 
           <View style={styles.statRow}>
@@ -1003,6 +1110,7 @@ const styles = StyleSheet.create({
   brandText: { fontSize: 28, fontWeight: '800', color: '#17324D' },
   homeSubtitle: { fontSize: 15, color: '#7A8994', marginTop: 4, fontWeight: '600' },
   cardsContainer: { flex: 1, justifyContent: 'center', gap: 16 },
+  levelHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 10 },
   modeCard: {
     flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: 20,
     borderWidth: 2, gap: 14,
