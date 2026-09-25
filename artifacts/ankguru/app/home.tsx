@@ -60,6 +60,109 @@ ENGLISH_WORDS.forEach((w, i) => { ENGLISH_WORD_MAP[w] = i + 1; });
 // Also add hyphenated versions
 ENGLISH_WORDS.forEach((w, i) => { ENGLISH_WORD_MAP[w.replace(/ /g, '-')] = i + 1; });
 
+
+// ─── Marathi Number Mapping & Recognition ────────────────────────────
+const DEVANAGARI_DIGIT_MAP = {
+  '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
+  '५': '5', '६': '6', '७': '7', '८': '8', '९': '9',
+};
+
+const MARATHI_NUMBER_MAP = {
+  'शून्य': 0, 'झिरो': 0, 'zero': 0,
+};
+MARATHI_NUMBERS.forEach((w, i) => {
+  MARATHI_NUMBER_MAP[w] = i + 1;
+});
+// Common phonetic variations & Devanagari pronunciations
+const MARATHI_VARIANTS = {
+  'नऊ': 9, 'नउ': 9, 'नव': 9,
+  'दहा': 10, 'दाहा': 10,
+  'सोळा': 16, 'सोला': 16,
+  'सतरा': 17, 'सत्रा': 17,
+  'अठरा': 18, 'अठ्ठरा': 18,
+  'एकोणीस': 19, 'एकवीस': 21,
+  'चव्वेचाळीस': 44, 'चव्वेचाळिस': 44,
+  'शंभर': 100,
+};
+Object.assign(MARATHI_NUMBER_MAP, MARATHI_VARIANTS);
+
+const MARATHI_INITIAL_PROMPT = 'शून्य, एक, दोन, तीन, चार, पाच, सहा, सात, आठ, नऊ, दहा, अकरा, बारा, तेरा, चौदा, पंधरा, सोळा, सतरा, अठरा, एकोणीस, वीस, एकवीस, बावीस, तेवीस, चोवीस, पंचवीस, तीस, पस्तीस, चाळीस, पन्नास, साठ, सत्तर, ऐंशी, नव्वद, शंभर.';
+
+function levenshteinDistance(s, t) {
+  if (!s.length) return t.length;
+  if (!t.length) return s.length;
+  const arr = [];
+  for (let i = 0; i <= t.length; i++) {
+    arr[i] = [i];
+    for (let j = 1; j <= s.length; j++) {
+      arr[i][j] = i === 0 ? j : Math.min(
+        arr[i - 1][j] + 1,
+        arr[i][j - 1] + 1,
+        arr[i - 1][j - 1] + (s[j - 1] === t[i - 1] ? 0 : 1)
+      );
+    }
+  }
+  return arr[t.length][s.length];
+}
+
+function parseMarathiNumber(text) {
+  if (!text) return null;
+
+  // 1. Check for Devanagari digits (e.g. '१२' -> 12)
+  let devanagariClean = text.replace(/[०-९]/g, d => DEVANAGARI_DIGIT_MAP[d]);
+  const numFromDevanagari = parseInt(devanagariClean.replace(/[^0-9]/g, ''), 10);
+  if (!isNaN(numFromDevanagari) && numFromDevanagari >= 1 && numFromDevanagari <= 100) {
+    return numFromDevanagari;
+  }
+
+  // 2. Check for Arabic digits directly returned by Whisper (e.g. '12')
+  const arabicNum = parseInt(text.replace(/[^0-9]/g, ''), 10);
+  if (!isNaN(arabicNum) && arabicNum >= 1 && arabicNum <= 100) {
+    return arabicNum;
+  }
+
+  // 3. Clean Marathi text (remove punctuation, numbers, english letters)
+  const cleanMarathi = text.replace(/[.,!?()[\]{}"'*\-0-9A-Za-z]/g, '').trim();
+  const noSpaces = cleanMarathi.replace(/\s+/g, '');
+
+  // Exact dictionary match
+  if (MARATHI_NUMBER_MAP[cleanMarathi] !== undefined) return MARATHI_NUMBER_MAP[cleanMarathi];
+  if (MARATHI_NUMBER_MAP[noSpaces] !== undefined) return MARATHI_NUMBER_MAP[noSpaces];
+
+  // Check each individual word
+  const words = cleanMarathi.split(/\s+/);
+  for (const w of words) {
+    if (MARATHI_NUMBER_MAP[w] !== undefined) return MARATHI_NUMBER_MAP[w];
+  }
+
+  // Fuzzy match with Levenshtein distance on words or whole string
+  let bestNum = null;
+  let minDistance = Infinity;
+  for (const [word, val] of Object.entries(MARATHI_NUMBER_MAP)) {
+    const dist = levenshteinDistance(noSpaces, word);
+    if (dist < minDistance && dist <= 2) {
+      minDistance = dist;
+      bestNum = val;
+    }
+  }
+  if (bestNum !== null) return bestNum;
+
+  for (const w of words) {
+    if (w.length < 2) continue;
+    for (const [word, val] of Object.entries(MARATHI_NUMBER_MAP)) {
+      const dist = levenshteinDistance(w, word);
+      if (dist < minDistance && dist <= 2) {
+        minDistance = dist;
+        bestNum = val;
+      }
+    }
+  }
+  if (bestNum !== null) return bestNum;
+
+  // 4. Fallback to English number parser if the user spoke in English
+  return parseEnglishNumber(text);
+}
+
 function parseEnglishNumber(text) {
   const clean = text.toLowerCase().replace(/[^a-z0-9 -]/g, '').trim();
   // Try direct number
@@ -115,7 +218,7 @@ function generateMCQOptions(correct) {
 const MODE_DATA = [
   { key: 'mcq', title: 'Listen & Choose', subtitle: 'ऐका आणि निवडा', desc: 'App speaks Marathi, pick the right answer', icon: 'grid', color: '#F6A64A', bg: '#FFF8EE' },
   { key: 'scribble', title: 'Listen & Draw', subtitle: 'ऐका आणि लिहा', desc: 'App speaks, you draw in Devanagari', icon: 'edit-2', color: '#48A995', bg: '#EEFBF7' },
-  { key: 'voice', title: 'Look & Speak', subtitle: 'पहा आणि बोला', desc: 'See question, speak answer in English (offline)', icon: 'mic', color: '#7184E6', bg: '#F0F0FF' },
+  { key: 'voice', title: 'Look & Speak', subtitle: 'पहा आणि बोला', desc: 'See question, speak answer in Marathi (offline)', icon: 'mic', color: '#7184E6', bg: '#F0F0FF' },
 ];
 
 // ═════════════════════════════════════════════════════════════════════
@@ -317,9 +420,9 @@ function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
         <View style={styles.questionCard}>
           {mode === 'voice' ? (
             <>
-              <Text style={styles.qLabel}>What is:</Text>
+              <Text style={styles.qLabel}>उत्तर सांगा (Solve & Speak):</Text>
               <Text style={styles.qText}>{toDevanagari(question.display)}</Text>
-              <Text style={styles.qHint}>Speak the answer in English</Text>
+              <Text style={styles.qHint}>मराठीत उत्तर बोला (Speak in Marathi)</Text>
             </>
           ) : (
             <>
@@ -652,7 +755,11 @@ function VoicePanel({ question, onResult, color }) {
       // Convert base64 PCM chunks to WAV file
       const pcmBuffers = audioChunks.current.map(b64 => Buffer.from(b64, 'base64'));
       const totalLength = pcmBuffers.reduce((sum, buf) => sum + buf.length, 0);
-      const pcmData = Buffer.concat(pcmBuffers, totalLength);
+      const rawPcm = Buffer.concat(pcmBuffers, totalLength);
+
+      // Add 0.4s of silence padding (zero bytes) before and after to prevent clipping & hallucinations
+      const silencePadding = Buffer.alloc(12800);
+      const pcmData = Buffer.concat([silencePadding, rawPcm, silencePadding]);
 
       // Create WAV header
       const wavHeader = Buffer.alloc(44);
@@ -676,7 +783,7 @@ function VoicePanel({ question, onResult, color }) {
         encoding: FileSystem.EncodingType.Base64,
       });
 
-      // Transcribe with Whisper (English)
+      // Transcribe with Whisper (Marathi with prompt biasing)
       // Wait if another transcription is still running
       if (isTranscribingRef.current) {
         console.log('[ASR] Waiting for previous transcription to finish...');
@@ -687,11 +794,12 @@ function VoicePanel({ question, onResult, color }) {
         }
       }
       isTranscribingRef.current = true;
-      console.log('[ASR] Transcribing with Whisper...');
+      console.log('[ASR] Transcribing with Whisper (Marathi)...');
       let result;
       try {
         const transcribeRes = whisperCtx.transcribe(wavPath, {
-          language: 'en',
+          language: 'mr',
+          initialPrompt: MARATHI_INITIAL_PROMPT,
           tokenTimestamps: false,
         });
         result = await transcribeRes.promise;
@@ -704,13 +812,13 @@ function VoicePanel({ question, onResult, color }) {
       console.log('[ASR] Whisper result:', rawText);
       setTranscript(rawText);
 
-      // Parse the English result
-      const parsed = parseEnglishNumber(rawText);
+      // Parse the Marathi (or English fallback) result
+      const parsed = parseMarathiNumber(rawText);
       if (parsed !== null) {
         console.log('[ASR] Parsed number:', parsed);
         setTimeout(() => onResult(parsed), 500);
       } else {
-        setError('Could not understand. Try again.');
+        setError('समजले नाही. पुन्हा बोला. (Try again)');
       }
     } catch (err) {
       console.error('[ASR] Transcription error:', err);
@@ -734,7 +842,7 @@ function VoicePanel({ question, onResult, color }) {
   return (
     <View style={styles.voiceContainer}>
       <Text style={styles.voiceHint}>
-        {isProcessing ? '⚙️ Processing...' : isRecording ? '🎤 Listening... Release to stop' : error ? '❌ ' + error : '🎤 Hold the button & speak in English'}
+        {isProcessing ? '⚙️ उत्तर तपासत आहे... (Processing)' : isRecording ? '🎤 ऐकत आहे... बोलून झाल्यावर सोडा' : error ? '❌ ' + error : '🎤 बटण दाबून ठेवा आणि मराठीत बोला'}
       </Text>
 
       <View style={styles.micWrapper}>
@@ -753,7 +861,7 @@ function VoicePanel({ question, onResult, color }) {
             ) : (
               <>
                 <Feather name={isRecording ? 'radio' : 'mic'} size={42} color="#FFF" />
-                <Text style={styles.micLabel}>{isRecording ? 'Listening...' : 'Hold to Speak'}</Text>
+                <Text style={styles.micLabel}>{isRecording ? 'ऐकत आहे...' : 'बोलण्यासाठी दाबा'}</Text>
               </>
             )}
           </Pressable>
@@ -762,7 +870,7 @@ function VoicePanel({ question, onResult, color }) {
 
       {transcript ? (
         <View style={styles.transcriptBox}>
-          <Text style={styles.transcriptLabel}>Whisper heard:</Text>
+          <Text style={styles.transcriptLabel}>ऐकलेला शब्द (Heard):</Text>
           <Text style={styles.transcriptText}>{transcript}</Text>
         </View>
       ) : null}
