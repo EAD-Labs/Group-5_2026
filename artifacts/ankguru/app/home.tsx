@@ -211,6 +211,89 @@ function parseMarathiNumber(text) {
   return parseEnglishNumber(text);
 }
 
+// Force-match any text to the closest Marathi number (never returns null for non-empty input)
+function forceMatchMarathiNumber(text) {
+  if (!text || !text.trim()) return null;
+
+  // First try the normal smart parser
+  const smartResult = parseMarathiNumber(text);
+  if (smartResult !== null) return smartResult;
+
+  // If smart parser failed, do aggressive fuzzy matching against ALL sources
+
+  // 1. Try Devanagari fuzzy match with higher tolerance
+  const cleanMarathi = text.replace(/[.,!?()[\]{}"'*\-0-9A-Za-z]/g, '').trim();
+  const noSpacesMarathi = cleanMarathi.replace(/\s+/g, '');
+  if (noSpacesMarathi.length >= 2) {
+    let bestNum = null;
+    let minDistance = Infinity;
+    for (const [word, val] of Object.entries(MARATHI_NUMBER_MAP)) {
+      const dist = levenshteinDistance(noSpacesMarathi, word);
+      const threshold = Math.max(3, Math.floor(word.length * 0.5)); // up to 50% of word length
+      if (dist < minDistance && dist <= threshold) {
+        minDistance = dist;
+        bestNum = val;
+      }
+    }
+    if (bestNum !== null) return bestNum;
+
+    // Try each word individually
+    const words = cleanMarathi.split(/\s+/);
+    for (const w of words) {
+      if (w.length < 2) continue;
+      for (const [word, val] of Object.entries(MARATHI_NUMBER_MAP)) {
+        const dist = levenshteinDistance(w, word);
+        const threshold = Math.max(3, Math.floor(word.length * 0.4));
+        if (dist < minDistance && dist <= threshold) {
+          minDistance = dist;
+          bestNum = val;
+        }
+      }
+    }
+    if (bestNum !== null) return bestNum;
+  }
+
+  // 2. Try Romanized fuzzy match with higher tolerance
+  const cleanLatin = text.toLowerCase().replace(/[^a-z]/g, '').trim();
+  if (cleanLatin.length >= 2) {
+    let bestRomanNum = null;
+    let minRomanDist = Infinity;
+    for (const [rWord, val] of Object.entries(ROMAN_MARATHI_MAP)) {
+      const dist = levenshteinDistance(cleanLatin, rWord);
+      const threshold = Math.max(4, Math.floor(rWord.length * 0.5));
+      if (dist < minRomanDist && dist <= threshold) {
+        minRomanDist = dist;
+        bestRomanNum = val;
+      }
+    }
+    if (bestRomanNum !== null) return bestRomanNum;
+
+    const latinWords = text.toLowerCase().replace(/[^a-z ]/g, '').split(/\s+/);
+    for (const lw of latinWords) {
+      if (lw.length < 3) continue;
+      for (const [rWord, val] of Object.entries(ROMAN_MARATHI_MAP)) {
+        const dist = levenshteinDistance(lw, rWord);
+        const threshold = Math.max(3, Math.floor(rWord.length * 0.45));
+        if (dist < minRomanDist && dist <= threshold) {
+          minRomanDist = dist;
+          bestRomanNum = val;
+        }
+      }
+    }
+    if (bestRomanNum !== null) return bestRomanNum;
+  }
+
+  return null;
+}
+
+// Get the Marathi word for a number (1-99)
+function getMarathiWord(num) {
+  if (num === 0) return MARATHI_DIGITS[0];
+  if (num === 100) return 'शंभर';
+  if (num >= 1 && num <= 99) return MARATHI_NUMBERS[num - 1] || String(num);
+  return String(num);
+}
+
 function parseEnglishNumber(text) {
   const clean = text.toLowerCase().replace(/[^a-z0-9 -]/g, '').trim();
   // Try direct number
@@ -965,15 +1048,18 @@ function VoicePanel({ question, onResult, color }) {
 
       console.log('[ASR] Full Whisper result object:', JSON.stringify(result));
       const rawText = (result?.result || '').trim();
-      console.log('[ASR] Whisper result:', rawText);
-      setTranscript(rawText);
+      console.log('[ASR] Whisper raw output:', rawText);
 
-      // Parse the Marathi (or English fallback) result
-      const parsed = parseMarathiNumber(rawText);
+      // Force-match to the closest Marathi number (always shows a number, never gibberish)
+      const parsed = forceMatchMarathiNumber(rawText);
       if (parsed !== null) {
-        console.log('[ASR] Parsed number:', parsed);
+        const marathiWord = getMarathiWord(parsed);
+        console.log('[ASR] Matched number:', parsed, '(' + marathiWord + ')');
+        setTranscript(marathiWord + ' (' + parsed + ')');
         setTimeout(() => onResult(parsed), 500);
       } else {
+        console.log('[ASR] Could not match any number from:', rawText);
+        setTranscript('');
         setError('समजले नाही. पुन्हा बोला. (Try again)');
       }
     } catch (err) {
@@ -1026,7 +1112,7 @@ function VoicePanel({ question, onResult, color }) {
 
       {transcript ? (
         <View style={styles.transcriptBox}>
-          <Text style={styles.transcriptLabel}>ऐकलेला शब्द (Heard):</Text>
+          <Text style={styles.transcriptLabel}>ऐकलेला अंक (Detected Number):</Text>
           <Text style={styles.transcriptText}>{transcript}</Text>
         </View>
       ) : null}
