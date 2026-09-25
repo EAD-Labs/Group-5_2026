@@ -105,61 +105,109 @@ function levenshteinDistance(s, t) {
   return arr[t.length][s.length];
 }
 
+// Romanized / Transliterated Marathi Number Map (handles Latin script output from Whisper)
+const ROMAN_MARATHI_MAP = {
+  'ek': 1, 'don': 2, 'do': 2, 'teen': 3, 'tin': 3, 'char': 4, 'paach': 5, 'pach': 5,
+  'saha': 6, 'saat': 7, 'sat': 7, 'aath': 8, 'ath': 8, 'nau': 9, 'nav': 9, 'daha': 10,
+  'akara': 11, 'aakra': 11, 'bara': 12, 'tera': 13, 'chauda': 14, 'pandhra': 15,
+  'sola': 16, 'solah': 16, 'satra': 17, 'athra': 18, 'athara': 18, 'ekonis': 19, 'vis': 20, 'vees': 20,
+  'ekvis': 21, 'bavis': 22, 'tevis': 23, 'chovis': 24, 'panchvis': 25, 'savvis': 26,
+  'sattavis': 27, 'atthavis': 28, 'ekontis': 29, 'tis': 30, 'tees': 30,
+  'ektis': 31, 'battis': 32, 'tehtis': 33, 'chautis': 34, 'pastis': 35, 'chhattis': 36,
+  'sadtis': 37, 'adtis': 38, 'adtees': 38, 'artees': 38, 'ekonchalis': 39, 'chalis': 40, 'chalees': 40,
+  'ekechaalis': 41, 'ekchalis': 41, 'bechaalis': 42, 'trechaalis': 43, 'chavvechaalis': 44, 'panchechaalis': 45,
+  'shehechaalis': 46, 'sattechaalis': 47, 'aththechaalis': 48, 'achontalis': 48, 'adchalis': 48,
+  'aththechalis': 48, 'achatalis': 48, 'adtechalis': 48, 'athvechalis': 48, 'ekonpannas': 49, 'pannaas': 50, 'pannas': 50,
+  'ekavanna': 51, 'ekavann': 51, 'bavan': 52, 'trepann': 53, 'chopann': 54, 'panchavann': 55, 'chhappann': 56,
+  'sattavann': 57, 'atthavann': 58, 'ekonsath': 59, 'saath': 60, 'sath': 60,
+  'eksasht': 61, 'basasht': 62, 'tresasht': 63, 'chausasht': 64, 'pasasht': 65,
+  'sahasasht': 66, 'sadusasht': 67, 'adusht': 68, 'adusast': 68, 'ekonsattar': 69, 'sattar': 70,
+  'ekahattar': 71, 'bahattar': 72, 'tryahattar': 73, 'chauryahattar': 74, 'panchyahattar': 75,
+  'shahattar': 76, 'satyahattar': 77, 'athyahattar': 78, 'ekonaishi': 79, 'aishi': 80,
+  'ekaishi': 81, 'byaishi': 82, 'tryaishi': 83, 'chauryaishi': 84, 'panchyaishi': 85,
+  'shahaishi': 86, 'satyaishi': 87, 'athyaishi': 88, 'ekonnavvad': 89, 'navvad': 90,
+  'ekyannav': 91, 'byannav': 92, 'tryannav': 93, 'chauryannav': 94, 'panchannav': 95,
+  'shahannav': 96, 'satyannav': 97, 'athyannav': 98, 'navvyannav': 99, 'shambhar': 100, 'sambhar': 100
+};
+
 function parseMarathiNumber(text) {
   if (!text) return null;
 
-  // 1. Check for Devanagari digits (e.g. '१२' -> 12)
+  // 1. Check for Devanagari digits (e.g. '१२' -> 12, '४८' -> 48)
   let devanagariClean = text.replace(/[०-९]/g, d => DEVANAGARI_DIGIT_MAP[d]);
   const numFromDevanagari = parseInt(devanagariClean.replace(/[^0-9]/g, ''), 10);
   if (!isNaN(numFromDevanagari) && numFromDevanagari >= 1 && numFromDevanagari <= 100) {
     return numFromDevanagari;
   }
 
-  // 2. Check for Arabic digits directly returned by Whisper (e.g. '12')
+  // 2. Check for Arabic digits directly returned by Whisper (e.g. '12', '48')
   const arabicNum = parseInt(text.replace(/[^0-9]/g, ''), 10);
   if (!isNaN(arabicNum) && arabicNum >= 1 && arabicNum <= 100) {
     return arabicNum;
   }
 
-  // 3. Clean Marathi text (remove punctuation, numbers, english letters)
+  // 3. Check for Devanagari words
   const cleanMarathi = text.replace(/[.,!?()[\]{}"'*\-0-9A-Za-z]/g, '').trim();
-  const noSpaces = cleanMarathi.replace(/\s+/g, '');
+  const noSpacesMarathi = cleanMarathi.replace(/\s+/g, '');
+  if (cleanMarathi) {
+    if (MARATHI_NUMBER_MAP[cleanMarathi] !== undefined) return MARATHI_NUMBER_MAP[cleanMarathi];
+    if (MARATHI_NUMBER_MAP[noSpacesMarathi] !== undefined) return MARATHI_NUMBER_MAP[noSpacesMarathi];
 
-  // Exact dictionary match
-  if (MARATHI_NUMBER_MAP[cleanMarathi] !== undefined) return MARATHI_NUMBER_MAP[cleanMarathi];
-  if (MARATHI_NUMBER_MAP[noSpaces] !== undefined) return MARATHI_NUMBER_MAP[noSpaces];
-
-  // Check each individual word
-  const words = cleanMarathi.split(/\s+/);
-  for (const w of words) {
-    if (MARATHI_NUMBER_MAP[w] !== undefined) return MARATHI_NUMBER_MAP[w];
-  }
-
-  // Fuzzy match with Levenshtein distance on words or whole string
-  let bestNum = null;
-  let minDistance = Infinity;
-  for (const [word, val] of Object.entries(MARATHI_NUMBER_MAP)) {
-    const dist = levenshteinDistance(noSpaces, word);
-    if (dist < minDistance && dist <= 2) {
-      minDistance = dist;
-      bestNum = val;
+    const words = cleanMarathi.split(/\s+/);
+    for (const w of words) {
+      if (MARATHI_NUMBER_MAP[w] !== undefined) return MARATHI_NUMBER_MAP[w];
     }
-  }
-  if (bestNum !== null) return bestNum;
 
-  for (const w of words) {
-    if (w.length < 2) continue;
+    let bestNum = null;
+    let minDistance = Infinity;
     for (const [word, val] of Object.entries(MARATHI_NUMBER_MAP)) {
-      const dist = levenshteinDistance(w, word);
+      const dist = levenshteinDistance(noSpacesMarathi, word);
       if (dist < minDistance && dist <= 2) {
         minDistance = dist;
         bestNum = val;
       }
     }
+    if (bestNum !== null) return bestNum;
   }
-  if (bestNum !== null) return bestNum;
 
-  // 4. Fallback to English number parser if the user spoke in English
+  // 4. Check for Romanized / Latin Marathi output (e.g. 'achontalis' -> 48, 'bara' -> 12)
+  const cleanLatin = text.toLowerCase().replace(/[^a-z]/g, '').trim();
+  if (cleanLatin) {
+    // Exact match in ROMAN_MARATHI_MAP
+    if (ROMAN_MARATHI_MAP[cleanLatin] !== undefined) return ROMAN_MARATHI_MAP[cleanLatin];
+
+    // Check individual words
+    const latinWords = text.toLowerCase().replace(/[^a-z ]/g, '').split(/\s+/);
+    for (const lw of latinWords) {
+      if (ROMAN_MARATHI_MAP[lw] !== undefined) return ROMAN_MARATHI_MAP[lw];
+    }
+
+    // Fuzzy match against ROMAN_MARATHI_MAP (distance <= 3 for compound number names)
+    let bestRomanNum = null;
+    let minRomanDist = Infinity;
+    for (const [rWord, val] of Object.entries(ROMAN_MARATHI_MAP)) {
+      const dist = levenshteinDistance(cleanLatin, rWord);
+      if (dist < minRomanDist && dist <= 3) {
+        minRomanDist = dist;
+        bestRomanNum = val;
+      }
+    }
+    if (bestRomanNum !== null) return bestRomanNum;
+
+    for (const lw of latinWords) {
+      if (lw.length < 3) continue;
+      for (const [rWord, val] of Object.entries(ROMAN_MARATHI_MAP)) {
+        const dist = levenshteinDistance(lw, rWord);
+        if (dist < minRomanDist && dist <= 2) {
+          minRomanDist = dist;
+          bestRomanNum = val;
+        }
+      }
+    }
+    if (bestRomanNum !== null) return bestRomanNum;
+  }
+
+  // 5. Fallback to English standard numbers (e.g. 'forty eight', 'seven')
   return parseEnglishNumber(text);
 }
 
@@ -799,7 +847,9 @@ function VoicePanel({ question, onResult, color }) {
       try {
         const transcribeRes = whisperCtx.transcribe(wavPath, {
           language: 'mr',
-          initialPrompt: MARATHI_INITIAL_PROMPT,
+          translate: false,
+          prompt: MARATHI_INITIAL_PROMPT,
+          maxThreads: 4,
           tokenTimestamps: false,
         });
         result = await transcribeRes.promise;
