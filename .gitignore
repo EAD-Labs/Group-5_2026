@@ -51,3 +51,5 @@ android/
 gradle_debug.log
 *.bin
 .easignore
+
+*.apk

@@ -459,6 +459,9 @@ function HomeScreen({ onStart }) {
               <Feather name="sun" size={22} color="#FFF" />
             </View>
             <Text style={styles.brandText}>AnkGuru</Text>
+            <View style={styles.versionBadge}>
+              <Text style={styles.versionBadgeText}>v2.0</Text>
+            </View>
           </View>
           <Text style={styles.homeSubtitle}>गणित शिका • Learn Math • 100% Offline</Text>
         </View>
@@ -492,7 +495,7 @@ function HomeScreen({ onStart }) {
           })}
         </View>
 
-        <Text style={styles.footerText}>Tap a mode to start • 5 questions • Numbers 1-99</Text>
+        <Text style={styles.footerText}>v2.0 (Build) • Tap a mode to start • 5 questions • Numbers 1-99</Text>
       </View>
     </SafeAreaView>
   );
@@ -527,7 +530,9 @@ function LevelScreen({ mode, onSelect, onBack }) {
             <Text style={[styles.brandText, { fontSize: 22, marginTop: 6 }]}>{modeInfo.title}</Text>
             <Text style={styles.homeSubtitle}>Choose difficulty • कठिणता निवडा</Text>
           </View>
-          <View style={{ width: 40 }} />
+          <View style={styles.versionBadgeSmall}>
+            <Text style={styles.versionBadgeTextSmall}>v2.0</Text>
+          </View>
         </View>
 
         <View style={styles.cardsContainer}>
@@ -569,14 +574,12 @@ function LevelScreen({ mode, onSelect, onBack }) {
 // PRACTICE SCREEN
 // ═════════════════════════════════════════════════════════════════════
 function PracticeScreen({ mode, level, question, qNumber, total, onAnswer, onBack }) {
-  const [feedback, setFeedback] = useState(null);
+  const [feedback, setFeedback] = useState<any>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const feedbackTimeout = useRef(null);
   const modeInfo = MODE_DATA.find(m => m.key === mode);
 
   useEffect(() => {
     setFeedback(null);
-    return () => { if (feedbackTimeout.current) clearTimeout(feedbackTimeout.current); };
   }, [question]);
 
   useEffect(() => {
@@ -628,11 +631,15 @@ function PracticeScreen({ mode, level, question, qNumber, total, onAnswer, onBac
     }
   };
 
-  const submitAnswer = (userAnswer) => {
+  const submitAnswer = (userAnswer, rawDetected) => {
     if (feedback) return;
-    const correct = userAnswer === question.answer;
-    setFeedback({ correct, userAnswer });
-    feedbackTimeout.current = setTimeout(() => onAnswer(correct), 1800);
+    const numAnswer = typeof userAnswer === 'object' && userAnswer !== null ? userAnswer.answer : userAnswer;
+    const correct = numAnswer === question.answer;
+    setFeedback({
+      correct,
+      userAnswer: numAnswer,
+      rawDetected: rawDetected || (typeof userAnswer === 'object' ? userAnswer.raw : undefined),
+    });
   };
 
   const progressPct = (qNumber / total) * 100;
@@ -646,7 +653,9 @@ function PracticeScreen({ mode, level, question, qNumber, total, onAnswer, onBac
             <Feather name="arrow-left" size={22} color="#17324D" />
           </Pressable>
           <Text style={[styles.practiceTitle, { color: modeInfo.color }]}>{modeInfo.title} • L{level}</Text>
-          <View style={{ width: 40 }} />
+          <View style={styles.versionBadgeSmall}>
+            <Text style={styles.versionBadgeTextSmall}>v2.0</Text>
+          </View>
         </View>
 
         <View style={styles.progressBar}>
@@ -675,30 +684,107 @@ function PracticeScreen({ mode, level, question, qNumber, total, onAnswer, onBac
           )}
         </View>
 
-        <ScrollView style={styles.interactionArea} contentContainerStyle={{ flexGrow: 1, paddingBottom: 30 }}>
-          {mode === 'mcq' && !feedback && (
-            <MCQPanel question={question} onSelect={submitAnswer} color={modeInfo.color} />
-          )}
-          {mode === 'scribble' && !feedback && (
-            <ScribblePanel question={question} onResult={submitAnswer} color={modeInfo.color} />
-          )}
-          {mode === 'voice' && !feedback && (
-            <VoicePanel question={question} onResult={submitAnswer} color={modeInfo.color} />
-          )}
-
-          {feedback && (
-            <View style={[styles.feedbackCard, feedback.correct ? styles.feedbackCorrect : styles.feedbackWrong]}>
-              <Feather name={feedback.correct ? 'check-circle' : 'x-circle'} size={36} color="#FFF" />
-              <View style={{ marginLeft: 14, flex: 1 }}>
-                <Text style={styles.feedbackTitle}>{feedback.correct ? 'Correct! बरोबर!' : 'Wrong! चुकीचे!'}</Text>
-                <Text style={styles.feedbackSub}>Answer: {toDevanagari(question.answer)} ({question.answerMarathi})</Text>
-                {feedback.userAnswer !== undefined && (
-                  <Text style={[styles.feedbackSub, { marginTop: 4, fontStyle: 'italic', opacity: 0.9, fontSize: 13 }]}>
-                    (Detected: {toDevanagari(feedback.userAnswer)})
+        <ScrollView style={styles.interactionArea} contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}>
+          {feedback ? (
+            <View style={styles.feedbackContainer}>
+              {/* Status Header Banner */}
+              <View style={[styles.feedbackBanner, feedback.correct ? styles.bannerCorrect : styles.bannerWrong]}>
+                <Feather
+                  name={feedback.correct ? 'check-circle' : 'x-circle'}
+                  size={36}
+                  color="#FFF"
+                />
+                <View style={{ marginLeft: 12, flex: 1 }}>
+                  <Text style={styles.bannerTitle}>
+                    {feedback.correct ? 'Correct! • बरोबर!' : 'Wrong! • चुकीचे!'}
                   </Text>
-                )}
+                  <Text style={styles.bannerSubtitle}>
+                    {feedback.correct ? 'Great Job! अचूक उत्तर!' : 'Accuracy Check • फरक आढळला'}
+                  </Text>
+                </View>
+                <View style={styles.feedbackTag}>
+                  <Text style={styles.feedbackTagText}>v2.0</Text>
+                </View>
               </View>
+
+              {/* Accuracy Details Card */}
+              <View style={styles.feedbackDetailCard}>
+                <View style={styles.feedbackMetaRow}>
+                  <Text style={styles.feedbackMetaText}>
+                    {modeInfo.title} • Level {level} • Q{toDevanagari(qNumber)}/{toDevanagari(total)}
+                  </Text>
+                  <Text style={[styles.feedbackResultBadge, { color: feedback.correct ? '#48A995' : '#E95757' }]}>
+                    {feedback.correct ? '✓ MATCH' : '✗ MISMATCH'}
+                  </Text>
+                </View>
+
+                {/* Actual Expected Answer */}
+                <View style={styles.feedbackItem}>
+                  <Text style={styles.feedbackLabel}>Actual Answer (अपेक्षित उत्तर):</Text>
+                  <View style={styles.feedbackValueRow}>
+                    <Text style={[styles.feedbackValueBold, { color: '#48A995' }]}>
+                      {toDevanagari(question.answer)} ({question.answer})
+                    </Text>
+                    <View style={styles.feedbackWordBadge}>
+                      <Text style={styles.feedbackWordBadgeText}>
+                        {question.answerMarathi || getMarathiWord(question.answer)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Detected / User Input */}
+                <View style={styles.feedbackDivider} />
+                <View style={styles.feedbackItem}>
+                  <Text style={styles.feedbackLabel}>Detected Input (ओळखलेले उत्तर):</Text>
+                  <View style={styles.feedbackValueRow}>
+                    <Text style={[styles.feedbackValueBold, { color: feedback.correct ? '#48A995' : '#E95757' }]}>
+                      {feedback.userAnswer !== undefined && feedback.userAnswer !== null
+                        ? `${toDevanagari(feedback.userAnswer)} (${feedback.userAnswer})`
+                        : 'None / काहीही नाही'}
+                    </Text>
+                    {feedback.userAnswer !== undefined && feedback.userAnswer !== null && (
+                      <View style={[styles.feedbackWordBadge, { backgroundColor: feedback.correct ? '#EEFBF7' : '#FEECEC' }]}>
+                        <Text style={[styles.feedbackWordBadgeText, { color: feedback.correct ? '#48A995' : '#E95757' }]}>
+                          {getMarathiWord(feedback.userAnswer)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  {feedback.rawDetected && typeof feedback.rawDetected === 'string' && feedback.rawDetected.trim().length > 0 && (
+                    <Text style={styles.feedbackExtraText}>
+                      Voice transcript heard: "{feedback.rawDetected}"
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              {/* Next Question / Proceed Button */}
+              <Pressable
+                onPress={() => onAnswer(feedback.correct)}
+                style={({ pressed }) => [
+                  styles.nextQuestionBtn,
+                  { backgroundColor: modeInfo.color },
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                ]}
+              >
+                <Text style={styles.nextQuestionBtnText}>
+                  {qNumber < total ? 'पुढचा प्रश्न (Next Question) ➔' : 'निकाल पहा (View Results) ➔'}
+                </Text>
+              </Pressable>
             </View>
+          ) : (
+            <>
+              {mode === 'mcq' && (
+                <MCQPanel question={question} onSelect={submitAnswer} color={modeInfo.color} />
+              )}
+              {mode === 'scribble' && (
+                <ScribblePanel question={question} onResult={submitAnswer} color={modeInfo.color} />
+              )}
+              {mode === 'voice' && (
+                <VoicePanel question={question} onResult={submitAnswer} color={modeInfo.color} />
+              )}
+            </>
           )}
         </ScrollView>
       </View>
@@ -1056,7 +1142,7 @@ function VoicePanel({ question, onResult, color }) {
         const marathiWord = getMarathiWord(parsed);
         console.log('[ASR] Matched number:', parsed, '(' + marathiWord + ')');
         setTranscript(marathiWord + ' (' + parsed + ')');
-        setTimeout(() => onResult(parsed), 500);
+        setTimeout(() => onResult(parsed, rawText), 500);
       } else {
         console.log('[ASR] Could not match any number from:', rawText);
         setTranscript('');
@@ -1145,7 +1231,12 @@ function SummaryScreen({ score, total, level, onRestart, onGoHome }) {
         <Animated.View style={[styles.summaryCard, { transform: [{ scale: scaleAnim }] }]}>
           <Text style={styles.summaryEmoji}>{emoji}</Text>
           <Text style={styles.summaryTitle}>Session Complete!</Text>
-          <Text style={{ fontSize: 14, color: '#7A8994', fontWeight: '600', marginTop: 2 }}>Level {level} • {LEVEL_DATA.find(l => l.key === level)?.desc || ''}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            <Text style={{ fontSize: 14, color: '#7A8994', fontWeight: '600' }}>Level {level} • {LEVEL_DATA.find(l => l.key === level)?.desc || ''}</Text>
+            <View style={styles.versionBadgeSmall}>
+              <Text style={styles.versionBadgeTextSmall}>v2.0</Text>
+            </View>
+          </View>
           <Text style={styles.summaryMessage}>{message}</Text>
 
           <View style={styles.statRow}>
@@ -1267,6 +1358,112 @@ const styles = StyleSheet.create({
   },
   offlineText: { fontSize: 12, color: '#48A995', fontWeight: '600' },
 
+  versionBadge: {
+    backgroundColor: '#7184E6',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  versionBadgeText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  versionBadgeSmall: {
+    backgroundColor: '#EEF2F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DDE7EE',
+  },
+  versionBadgeTextSmall: {
+    color: '#17324D',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  feedbackContainer: {
+    width: '100%',
+    paddingTop: 4,
+  },
+  feedbackBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 18,
+    marginBottom: 10,
+  },
+  bannerCorrect: { backgroundColor: '#48A995' },
+  bannerWrong: { backgroundColor: '#E95757' },
+  bannerTitle: { fontSize: 18, fontWeight: '800', color: '#FFF' },
+  bannerSubtitle: { fontSize: 12, color: '#FFF', opacity: 0.9, marginTop: 2 },
+  feedbackTag: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  feedbackTagText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
+  feedbackDetailCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#17324D',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+    marginBottom: 14,
+  },
+  feedbackMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF2F6',
+    marginBottom: 8,
+  },
+  feedbackMetaText: { fontSize: 12, color: '#7A8994', fontWeight: '700' },
+  feedbackResultBadge: { fontSize: 12, fontWeight: '800' },
+  feedbackItem: { marginVertical: 2 },
+  feedbackLabel: { fontSize: 12, color: '#7A8994', fontWeight: '600', marginBottom: 4 },
+  feedbackValueRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  feedbackValueBold: { fontSize: 22, fontWeight: '800' },
+  feedbackWordBadge: {
+    backgroundColor: '#EEFBF7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  feedbackWordBadgeText: { fontSize: 14, fontWeight: '700', color: '#17324D' },
+  feedbackDivider: { height: 1, backgroundColor: '#EEF2F6', marginVertical: 8 },
+  feedbackExtraText: {
+    fontSize: 12,
+    color: '#8A969E',
+    fontStyle: 'italic',
+    marginTop: 6,
+  },
+  nextQuestionBtn: {
+    width: '100%',
+    height: 52,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  nextQuestionBtnText: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#FFF',
+    letterSpacing: 0.3,
+  },
   feedbackCard: { flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: 20, marginTop: 16 },
   feedbackCorrect: { backgroundColor: '#48A995' },
   feedbackWrong: { backgroundColor: '#E95757' },
