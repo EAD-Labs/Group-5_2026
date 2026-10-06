@@ -1,3 +1,4 @@
+import { pcmChunksToFloat32, evaluateSpokenAnswer, DtwResult } from '../utils/dtwEngine';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, Pressable, Animated, ActivityIndicator,
@@ -380,7 +381,7 @@ function generateMCQOptions(correct) {
 const MODE_DATA = [
   { key: 'mcq', title: 'Listen & Choose', subtitle: 'ऐका आणि निवडा', desc: 'App speaks Marathi, pick the right answer', icon: 'grid', color: '#F6A64A', bg: '#FFF8EE' },
   { key: 'scribble', title: 'Listen & Draw', subtitle: 'ऐका आणि लिहा', desc: 'App speaks, you draw in Devanagari', icon: 'edit-2', color: '#48A995', bg: '#EEFBF7' },
-  { key: 'voice', title: 'Look & Speak', subtitle: 'पहा आणि बोला', desc: 'See question, speak answer in Marathi (offline)', icon: 'mic', color: '#7184E6', bg: '#F0F0FF' },
+  { key: 'voice', title: 'Look & Speak', subtitle: 'पहा आणि बोला', desc: 'Option 1: Acoustic DTW Matching (100% Offline)', icon: 'mic', color: '#7184E6', bg: '#F0F0FF' },
 ];
 
 // ═════════════════════════════════════════════════════════════════════
@@ -460,7 +461,7 @@ function HomeScreen({ onStart }) {
             </View>
             <Text style={styles.brandText}>AnkGuru</Text>
             <View style={styles.versionBadge}>
-              <Text style={styles.versionBadgeText}>v2.0</Text>
+              <Text style={styles.versionBadgeText}>v2.1-DTW</Text>
             </View>
           </View>
           <Text style={styles.homeSubtitle}>गणित शिका • Learn Math • 100% Offline</Text>
@@ -495,7 +496,7 @@ function HomeScreen({ onStart }) {
           })}
         </View>
 
-        <Text style={styles.footerText}>v2.0 (Build) • Tap a mode to start • 5 questions • Numbers 1-99</Text>
+        <Text style={styles.footerText}>v2.1-DTW (Build) • Tap a mode to start • 5 questions • Numbers 1-99</Text>
       </View>
     </SafeAreaView>
   );
@@ -531,7 +532,7 @@ function LevelScreen({ mode, onSelect, onBack }) {
             <Text style={styles.homeSubtitle}>Choose difficulty • कठिणता निवडा</Text>
           </View>
           <View style={styles.versionBadgeSmall}>
-            <Text style={styles.versionBadgeTextSmall}>v2.0</Text>
+            <Text style={styles.versionBadgeTextSmall}>v2.1-DTW</Text>
           </View>
         </View>
 
@@ -634,7 +635,10 @@ function PracticeScreen({ mode, level, question, qNumber, total, onAnswer, onBac
   const submitAnswer = (userAnswer, rawDetected) => {
     if (feedback) return;
     const numAnswer = typeof userAnswer === 'object' && userAnswer !== null ? userAnswer.answer : userAnswer;
-    const correct = numAnswer === question.answer;
+    let correct = numAnswer === question.answer;
+    if (rawDetected && typeof rawDetected === 'object' && typeof rawDetected.isMatch === 'boolean') {
+      correct = rawDetected.isMatch;
+    }
     setFeedback({
       correct,
       userAnswer: numAnswer,
@@ -654,7 +658,7 @@ function PracticeScreen({ mode, level, question, qNumber, total, onAnswer, onBac
           </Pressable>
           <Text style={[styles.practiceTitle, { color: modeInfo.color }]}>{modeInfo.title} • L{level}</Text>
           <View style={styles.versionBadgeSmall}>
-            <Text style={styles.versionBadgeTextSmall}>v2.0</Text>
+            <Text style={styles.versionBadgeTextSmall}>v2.1-DTW</Text>
           </View>
         </View>
 
@@ -703,7 +707,7 @@ function PracticeScreen({ mode, level, question, qNumber, total, onAnswer, onBac
                   </Text>
                 </View>
                 <View style={styles.feedbackTag}>
-                  <Text style={styles.feedbackTagText}>v2.0</Text>
+                  <Text style={styles.feedbackTagText}>v2.1-DTW</Text>
                 </View>
               </View>
 
@@ -751,6 +755,22 @@ function PracticeScreen({ mode, level, question, qNumber, total, onAnswer, onBac
                       </View>
                     )}
                   </View>
+                  {feedback.rawDetected && typeof feedback.rawDetected === 'object' && feedback.rawDetected.targetSimilarity !== undefined && (
+                    <View style={styles.dtwScoreBox}>
+                      <View style={styles.dtwScoreRow}>
+                        <Text style={styles.dtwScoreLabel}>Acoustic DTW Similarity:</Text>
+                        <Text style={[styles.dtwScoreValue, { color: feedback.correct ? '#48A995' : '#E95757' }]}>
+                          {feedback.rawDetected.targetSimilarity}%
+                        </Text>
+                      </View>
+                      <Text style={styles.dtwScoreSub}>
+                        Target: {feedback.rawDetected.targetWord} • Closest acoustic match: {feedback.rawDetected.bestWord} ({feedback.rawDetected.bestNumber})
+                      </Text>
+                      <Text style={[styles.dtwScoreStatus, { color: feedback.correct ? '#48A995' : '#E95757' }]}>
+                        {feedback.correct ? '✓ Match verified (≥ 70% similarity threshold)' : '✗ Acoustic distance below match threshold'}
+                      </Text>
+                    </View>
+                  )}
                   {feedback.rawDetected && typeof feedback.rawDetected === 'string' && feedback.rawDetected.trim().length > 0 && (
                     <Text style={styles.feedbackExtraText}>
                       Voice transcript heard: "{feedback.rawDetected}"
@@ -987,37 +1007,13 @@ function ScribblePanel({ question, onResult, color }) {
 // VOICE PANEL (Whisper Offline English)
 // ═════════════════════════════════════════════════════════════════════
 function VoicePanel({ question, onResult, color }) {
-  const [whisperCtx, setWhisperCtx] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState('');
   const audioChunks = useRef([]);
-  const isTranscribingRef = useRef(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(0)).current;
-
-  // Load Whisper model
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        console.log('[ASR] Loading Whisper Base model...');
-        const ctx = await initWhisper({ filePath: MODEL_ASSET });
-        if (!cancelled) {
-          setWhisperCtx(ctx);
-          setIsLoading(false);
-          console.log('[ASR] Whisper Base loaded successfully');
-        }
-      } catch (err) {
-        console.error('[ASR] Whisper load error:', err);
-        setError('Failed to load AI model');
-        setIsLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   // Mic permission
   useEffect(() => {
@@ -1026,7 +1022,7 @@ function VoicePanel({ question, onResult, color }) {
     }
   }, []);
 
-  // Pulse animation
+  // Pulse animation while recording
   useEffect(() => {
     if (isRecording) {
       const loop = Animated.loop(
@@ -1041,8 +1037,15 @@ function VoicePanel({ question, onResult, color }) {
     pulseAnim.setValue(0);
   }, [isRecording]);
 
+  const speakReference = () => {
+    Speech.speak(question.answerMarathi, {
+      language: 'mr-IN',
+      rate: 0.85,
+    });
+  };
+
   const startRecording = async () => {
-    if (!whisperCtx || isRecording || isProcessing) return;
+    if (isRecording || isProcessing) return;
     Animated.spring(scaleAnim, { toValue: 0.88, useNativeDriver: true }).start();
 
     audioChunks.current = [];
@@ -1062,7 +1065,7 @@ function VoicePanel({ question, onResult, color }) {
 
     LiveAudioStream.start();
     setIsRecording(true);
-    console.log('[ASR] Recording started');
+    console.log('[DTW-ASR] Recording started');
   };
 
   const stopRecording = async () => {
@@ -1072,85 +1075,41 @@ function VoicePanel({ question, onResult, color }) {
     LiveAudioStream.stop();
     setIsRecording(false);
     setIsProcessing(true);
-    console.log('[ASR] Recording stopped, chunks:', audioChunks.current.length);
+    console.log('[DTW-ASR] Recording stopped, chunks:', audioChunks.current.length);
 
     try {
-      // Convert base64 PCM chunks to WAV file
-      const pcmBuffers = audioChunks.current.map(b64 => Buffer.from(b64, 'base64'));
-      const totalLength = pcmBuffers.reduce((sum, buf) => sum + buf.length, 0);
-      const rawPcm = Buffer.concat(pcmBuffers, totalLength);
-
-      // Add 0.4s of silence padding (zero bytes) before and after to prevent clipping & hallucinations
-      const silencePadding = Buffer.alloc(12800);
-      const pcmData = Buffer.concat([silencePadding, rawPcm, silencePadding]);
-
-      // Create WAV header
-      const wavHeader = Buffer.alloc(44);
-      wavHeader.write('RIFF', 0);
-      wavHeader.writeUInt32LE(36 + pcmData.length, 4);
-      wavHeader.write('WAVE', 8);
-      wavHeader.write('fmt ', 12);
-      wavHeader.writeUInt32LE(16, 16);
-      wavHeader.writeUInt16LE(1, 20);
-      wavHeader.writeUInt16LE(1, 22);
-      wavHeader.writeUInt32LE(16000, 24);
-      wavHeader.writeUInt32LE(32000, 28);
-      wavHeader.writeUInt16LE(2, 32);
-      wavHeader.writeUInt16LE(16, 34);
-      wavHeader.write('data', 36);
-      wavHeader.writeUInt32LE(pcmData.length, 40);
-
-      const wavBuffer = Buffer.concat([wavHeader, pcmData]);
-      const wavPath = FileSystem.cacheDirectory + 'voice_input.wav';
-      await FileSystem.writeAsStringAsync(wavPath, wavBuffer.toString('base64'), {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      // Transcribe with Whisper (Marathi with prompt biasing)
-      // Wait if another transcription is still running
-      if (isTranscribingRef.current) {
-        console.log('[ASR] Waiting for previous transcription to finish...');
-        let retries = 0;
-        while (isTranscribingRef.current && retries < 30) {
-          await new Promise(r => setTimeout(r, 200));
-          retries++;
-        }
-      }
-      isTranscribingRef.current = true;
-      console.log('[ASR] Transcribing with Whisper (Marathi)...');
-      let result;
-      try {
-        const transcribeRes = whisperCtx.transcribe(wavPath, {
-          language: 'mr',
-          translate: false,
-          prompt: MARATHI_INITIAL_PROMPT,
-          maxThreads: 4,
-          tokenTimestamps: false,
-        });
-        result = await transcribeRes.promise;
-      } finally {
-        isTranscribingRef.current = false;
+      if (audioChunks.current.length === 0) {
+        setError('आवाज ऐकू आला नाही. कृपया पुन्हा बोला. (Speak louder)');
+        setIsProcessing(false);
+        return;
       }
 
-      console.log('[ASR] Full Whisper result object:', JSON.stringify(result));
-      const rawText = (result?.result || '').trim();
-      console.log('[ASR] Whisper raw output:', rawText);
+      // Convert raw base64 PCM to Float32Array
+      const rawPcm = pcmChunksToFloat32(audioChunks.current);
+      console.log('[DTW-ASR] Extracted PCM samples:', rawPcm.length);
 
-      // Force-match to the closest Marathi number (always shows a number, never gibberish)
-      const parsed = forceMatchMarathiNumber(rawText);
-      if (parsed !== null) {
-        const marathiWord = getMarathiWord(parsed);
-        console.log('[ASR] Matched number:', parsed, '(' + marathiWord + ')');
-        setTranscript(marathiWord + ' (' + parsed + ')');
-        setTimeout(() => onResult(parsed, rawText), 500);
-      } else {
-        console.log('[ASR] Could not match any number from:', rawText);
-        setTranscript('');
-        setError('समजले नाही. पुन्हा बोला. (Try again)');
+      // Evaluate directly against target answer using Acoustic DTW
+      const dtwResult = evaluateSpokenAnswer(rawPcm, question.answer);
+      console.log('[DTW-ASR] Result:', JSON.stringify(dtwResult));
+
+      if (!dtwResult) {
+        setError('समजले नाही / खूप शांत आवाज. पुन्हा बोला. (Speak louder)');
+        setIsProcessing(false);
+        return;
       }
+
+      // Display detected result & similarity
+      const label = `${dtwResult.bestWord} (${toDevanagari(dtwResult.bestNumber)}) • ${dtwResult.targetSimilarity}% Match`;
+      setTranscript(label);
+
+      // Advance to feedback screen with DTW accuracy payload
+      const reportedNumber = dtwResult.isMatch ? question.answer : dtwResult.bestNumber;
+      setTimeout(() => {
+        onResult(reportedNumber, dtwResult);
+      }, 350);
     } catch (err) {
-      console.error('[ASR] Transcription error:', err);
-      setError('Transcription failed');
+      console.error('[DTW-ASR] Evaluation error:', err);
+      setError('Evaluation failed');
     } finally {
       setIsProcessing(false);
     }
@@ -1158,19 +1117,16 @@ function VoicePanel({ question, onResult, color }) {
 
   const pulseOpacity = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] });
 
-  if (isLoading) {
-    return (
-      <View style={styles.voiceContainer}>
-        <ActivityIndicator size="large" color={color} />
-        <Text style={styles.voiceHint}>Loading AI Model...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.voiceContainer}>
       <Text style={styles.voiceHint}>
-        {isProcessing ? '⚙️ उत्तर तपासत आहे... (Processing)' : isRecording ? '🎤 ऐकत आहे... बोलून झाल्यावर सोडा' : error ? '❌ ' + error : '🎤 बटण दाबून ठेवा आणि मराठीत बोला'}
+        {isProcessing
+          ? '⚙️ अकौस्टिक DTW तपासत आहे... (< 30ms)'
+          : isRecording
+          ? '🎤 ऐकत आहे... बोलून झाल्यावर बोट उचला'
+          : error
+          ? '❌ ' + error
+          : '🎤 बटण दाबून धरा आणि मराठीत उत्तर बोला'}
       </Text>
 
       <View style={styles.micWrapper}>
@@ -1189,23 +1145,29 @@ function VoicePanel({ question, onResult, color }) {
             ) : (
               <>
                 <Feather name={isRecording ? 'radio' : 'mic'} size={42} color="#FFF" />
-                <Text style={styles.micLabel}>{isRecording ? 'ऐकत आहे...' : 'बोलण्यासाठी दाबा'}</Text>
+                <Text style={styles.micLabel}>{isRecording ? 'ऐकत आहे...' : 'दाबून बोला'}</Text>
               </>
             )}
           </Pressable>
         </Animated.View>
       </View>
 
+      {/* Reference Audio Pronunciation helper */}
+      <Pressable onPress={speakReference} style={styles.referenceAudioBtn}>
+        <Feather name="volume-2" size={16} color="#7184E6" />
+        <Text style={styles.referenceAudioText}>अचूक उच्चार ऐका (Hear "{question.answerMarathi}")</Text>
+      </Pressable>
+
       {transcript ? (
         <View style={styles.transcriptBox}>
-          <Text style={styles.transcriptLabel}>ऐकलेला अंक (Detected Number):</Text>
+          <Text style={styles.transcriptLabel}>ओळखलेला अंक (Acoustic DTW Output):</Text>
           <Text style={styles.transcriptText}>{transcript}</Text>
         </View>
       ) : null}
 
       <View style={styles.offlineBadge}>
-        <Feather name="wifi-off" size={14} color="#48A995" />
-        <Text style={styles.offlineText}>100% Offline • No internet needed</Text>
+        <Feather name="zap" size={14} color="#7184E6" />
+        <Text style={[styles.offlineText, { color: '#7184E6' }]}>Option 1: 100% Offline DTW Acoustic Matcher</Text>
       </View>
     </View>
   );
@@ -1234,7 +1196,7 @@ function SummaryScreen({ score, total, level, onRestart, onGoHome }) {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
             <Text style={{ fontSize: 14, color: '#7A8994', fontWeight: '600' }}>Level {level} • {LEVEL_DATA.find(l => l.key === level)?.desc || ''}</Text>
             <View style={styles.versionBadgeSmall}>
-              <Text style={styles.versionBadgeTextSmall}>v2.0</Text>
+              <Text style={styles.versionBadgeTextSmall}>v2.1-DTW</Text>
             </View>
           </View>
           <Text style={styles.summaryMessage}>{message}</Text>
@@ -1457,6 +1419,53 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
+  },
+  referenceAudioBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EEF0FD',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginBottom: 14,
+  },
+  referenceAudioText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#7184E6',
+  },
+  dtwScoreBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  dtwScoreRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dtwScoreLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#17324D',
+  },
+  dtwScoreValue: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  dtwScoreSub: {
+    fontSize: 11,
+    color: '#7A8994',
+    marginTop: 4,
+  },
+  dtwScoreStatus: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 4,
   },
   nextQuestionBtnText: {
     fontSize: 17,
