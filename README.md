@@ -1,9 +1,9 @@
-# AnkGuru / AnkPati (अंकपाटी)
+# AnkGuru (अंकगुरू)
 
 Devanagari Handwritten Digit Recognition and Educational Mathematics Tool for Marathi Primary Learners.
 
 ## Features
-- **अंकपाटी (Devanagari Digit Slate)**: 100% offline handwritten digit recognition (० ते ९) using an embedded Convolutional Neural Network (~156k parameters).
+- **अंकगुरू (Devanagari Digit Recognition)**: 100% offline handwritten digit recognition (० ते ९) using an embedded Convolutional Neural Network (~156k parameters).
 - **Real-Time Probability Breakdown**: Displays full probability distribution across all 10 Marathi digits.
 - **Preprocessed Tensor Inspection**: Live 32x32 centered and normalized feature map view.
 - **Touch-Optimized**: Designed for touch tablets and smartphones with zero latency.
