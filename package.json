@@ -1,7 +1,7 @@
 {
   "name": "workspace",
   "version": "0.0.0",
-  "license": "MIT",
+  "license": "CC-BY-4.0",
   "scripts": {
     "build": "npm run typecheck && npm -r --if-present run build",
     "typecheck:libs": "tsc --build",
