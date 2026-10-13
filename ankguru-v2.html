@@ -1,9 +1,9 @@
-export const ANKPATI_HTML = `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="mr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>अंकपाटी — मराठी अंक ओळखणारा</title>
+<title>अंकगुरू — मराठी अंक ओळखणारा</title>
 <style>
 @font-face {
   font-family: 'NotoDev';
@@ -230,7 +230,7 @@ footer a{ color: var(--indigo); }
 
   <header class="top">
     <div>
-      <h1><span class="devnag">अंकपाटी</span></h1>
+      <h1><span class="devnag">अंकगुरू</span></h1>
       <p>पाटीवर एक मराठी अंक (० ते ९) काढा — मॉडेल तो लगेच ओळखेल. संपूर्णपणे ऑफलाइन, ब्राउझरमध्येच चालते.</p>
     </div>
     <span class="badge" id="accBadge">चाचणी अचूकता ९९.८%</span>
@@ -547,12 +547,12 @@ const NAMES = ['शून्य','एक','दोन','तीन','चार','�
 function buildBars(probs, top){
   const barsEl = document.getElementById('bars');
   if(!barsEl.dataset.built){
-    barsEl.innerHTML = DIGITS.map((d,i)=>\`
-      <div class="bar-row" id="row\${i}">
-        <div class="bar-digit devnag">\${d}</div>
-        <div class="bar-track"><div class="bar-fill" id="fill\${i}"></div></div>
-        <div class="bar-pct" id="pct\${i}">0.0%</div>
-      </div>\`).join('');
+    barsEl.innerHTML = DIGITS.map((d,i)=>`
+      <div class="bar-row" id="row${i}">
+        <div class="bar-digit devnag">${d}</div>
+        <div class="bar-track"><div class="bar-fill" id="fill${i}"></div></div>
+        <div class="bar-pct" id="pct${i}">0.0%</div>
+      </div>`).join('');
     barsEl.dataset.built = '1';
   }
   for(let i=0;i<10;i++){
@@ -576,12 +576,12 @@ function resetResultUI(){
 function renderResult(probs, tensor){
   let top=0;
   for(let i=1;i<10;i++) if(probs[i]>probs[top]) top=i;
-  document.getElementById('resultHero').innerHTML = \`
-    <div class="result-num devnag">\${DIGITS[top]}</div>
+  document.getElementById('resultHero').innerHTML = `
+    <div class="result-num devnag">${DIGITS[top]}</div>
     <div class="result-meta">
-      <div class="result-name"><span class="devnag">\${DIGITS[top]}</span>\${NAMES[top]}</div>
-      <div class="result-conf">विश्वासार्हता: <b>\${(probs[top]*100).toFixed(1)}%</b></div>
-    </div>\`;
+      <div class="result-name"><span class="devnag">${DIGITS[top]}</span>${NAMES[top]}</div>
+      <div class="result-conf">विश्वासार्हता: <b>${(probs[top]*100).toFixed(1)}%</b></div>
+    </div>`;
   buildBars(probs, top);
   const pctx = document.getElementById('preview').getContext('2d');
   const imgData = pctx.createImageData(32,32);
@@ -604,4 +604,3 @@ resizeCanvasBacking();
 </script>
 </body>
 </html>
-`;

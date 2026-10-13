@@ -189,7 +189,7 @@ document.addEventListener('message', function(e) {
     const base64 = e.data;
     const img = new Image();
     img.onload = () => {
-      // Create a canvas mirroring 'board' from ankpati
+      // Create a canvas mirroring 'board' from ankguru
       const canvas = document.createElement('canvas');
       canvas.width = img.width;
       canvas.height = img.height;
