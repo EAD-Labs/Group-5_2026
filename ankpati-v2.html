@@ -268,7 +268,7 @@ footer a{ color: var(--indigo); }
 
   <footer>
     मॉडेल एक छोटे CNN (Convolutional Neural Network, ~१.५६ लाख पॅरामीटर) आहे. प्रशिक्षण: Devanagari Handwritten Character Dataset (Acharya, Pant &amp; Gyawali, 2015) मधील २०,००० हस्तलिखित अंक-प्रतिमा (प्रत्येक अंकाच्या २,००० ), त्यांपासून तयार केलेली माउस/बोटाने काढल्यासारखी एकसमान जाडीची रेषा-चित्रे, आणि देवनागरी अंकांच्या (विशेषतः वळण असलेल्या '१' च्या) फॉन्ट-आकारांवर आधारित कृत्रिम रेखाटने — यांमध्ये फिरवणे, तिरपेपणा, लवचिक वळण, जाडी व स्थान यांचे बदल करून. सर्व आकडेमोड याच पानावर, JavaScript मध्ये चालते; इंटरनेटची गरज नाही.
-  </footer>
+   <br><br><b>परवाना:</b> हे साधन आणि मॉडेल <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">Creative Commons Attribution 4.0 International (CC BY 4.0)</a> अंतर्गत परवानाकृत आहे.</footer>
 
 </div>
 
