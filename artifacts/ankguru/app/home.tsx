@@ -1,36 +1,24 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, Pressable, Animated, ActivityIndicator,
-  StatusBar, Dimensions, ScrollView, Platform, PermissionsAndroid,
+  View, Text, StyleSheet, Pressable, Animated,
+  StatusBar, Dimensions, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
-import SignatureScreen from 'react-native-signature-canvas';
 import { WebView } from 'react-native-webview';
-import { initWhisper } from 'whisper.rn';
-import LiveAudioStream from '@fugood/react-native-audio-pcm-stream';
-import * as FileSystem from 'expo-file-system/legacy';
-import { Buffer } from 'buffer';
-import { getMlHtml } from '../utils/mlHtml';
+import { getScribbleEngineHtml } from '../utils/scribbleEngineHtml';
 
-export const toDevanagari = (str) => {
+export const toDevanagari = (str: any): string => {
   if (str === undefined || str === null) return '';
   const digits = ['०','१','२','३','४','५','६','७','८','९'];
-  return str.toString().replace(/[0-9]/g, match => digits[parseInt(match)]);
+  return str.toString().replace(/[0-9]/g, (match: string) => digits[parseInt(match, 10)]);
 };
 
-
-// ─── Constants ───────────────────────────────────────────────────────
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CANVAS_HEIGHT = Dimensions.get('window').height * 0.32;
-const NUM_QUESTIONS = 5;
-const MODEL_ASSET = require('../assets/models/ggml-base.bin');
-
 // ─── Marathi Numbers (0-99) ──────────────────────────────────────────
-const MARATHI_DIGITS = ['शून्य', 'एक', 'दोन', 'तीन', 'चार', 'पाच', 'सहा', 'सात', 'आठ', 'नउ'];
+const MARATHI_DIGITS = ['शून्य', 'एक', 'दोन', 'तीन', 'चार', 'पाच', 'सहा', 'सात', 'आठ', 'नऊ'];
 const MARATHI_NUMBERS = [
-  "एक", "दोन", "तीन", "चार", "पाच", "सहा", "सात", "आठ", "नउ", "दहा",
+  "एक", "दोन", "तीन", "चार", "पाच", "सहा", "सात", "आठ", "नऊ", "दहा",
   "अकरा", "बारा", "तेरा", "चौदा", "पंधरा", "सोळा", "सतरा", "अठरा", "एकोणीस", "वीस",
   "एकवीस", "बावीस", "तेवीस", "चोवीस", "पंचवीस", "सव्वीस", "सत्तावीस", "अठ्ठावीस", "एकोणतीस", "तीस",
   "एकतीस", "बत्तीस", "तेहतीस", "चौतीस", "पस्तीस", "छत्तीस", "सदतीस", "अडतीस", "एकोणचाळीस", "चाळीस",
@@ -42,112 +30,182 @@ const MARATHI_NUMBERS = [
   "एक्याण्णव", "ब्याण्णव", "त्र्याण्णव", "चौऱ्याण्णव", "पंचाण्णव", "शहाण्णव", "सत्याण्णव", "अठ्ठ्याण्णव", "नव्व्याण्णव",
 ];
 
-// ─── English Number Words → Numeric ─────────────────────────────────
-const ENGLISH_WORD_MAP = {};
-const ENGLISH_WORDS = [
-  'one','two','three','four','five','six','seven','eight','nine','ten',
-  'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty',
-  'twenty one','twenty two','twenty three','twenty four','twenty five','twenty six','twenty seven','twenty eight','twenty nine','thirty',
-  'thirty one','thirty two','thirty three','thirty four','thirty five','thirty six','thirty seven','thirty eight','thirty nine','forty',
-  'forty one','forty two','forty three','forty four','forty five','forty six','forty seven','forty eight','forty nine','fifty',
-  'fifty one','fifty two','fifty three','fifty four','fifty five','fifty six','fifty seven','fifty eight','fifty nine','sixty',
-  'sixty one','sixty two','sixty three','sixty four','sixty five','sixty six','sixty seven','sixty eight','sixty nine','seventy',
-  'seventy one','seventy two','seventy three','seventy four','seventy five','seventy six','seventy seven','seventy eight','seventy nine','eighty',
-  'eighty one','eighty two','eighty three','eighty four','eighty five','eighty six','eighty seven','eighty eight','eighty nine','ninety',
-  'ninety one','ninety two','ninety three','ninety four','ninety five','ninety six','ninety seven','ninety eight','ninety nine',
-];
-ENGLISH_WORDS.forEach((w, i) => { ENGLISH_WORD_MAP[w] = i + 1; });
-// Also add hyphenated versions
-ENGLISH_WORDS.forEach((w, i) => { ENGLISH_WORD_MAP[w.replace(/ /g, '-')] = i + 1; });
-
-function parseEnglishNumber(text) {
-  const clean = text.toLowerCase().replace(/[^a-z0-9 -]/g, '').trim();
-  // Try direct number
-  const num = parseInt(clean, 10);
-  if (!isNaN(num) && num >= 1 && num <= 99) return num;
-  // Try word map
-  if (ENGLISH_WORD_MAP[clean] !== undefined) return ENGLISH_WORD_MAP[clean];
-  // Try each word
-  const words = clean.split(/\s+/);
-  for (const w of words) {
-    if (ENGLISH_WORD_MAP[w] !== undefined) return ENGLISH_WORD_MAP[w];
-    const n = parseInt(w, 10);
-    if (!isNaN(n) && n >= 1 && n <= 99) return n;
-  }
-  return null;
+function getMarathiWord(num: number): string {
+  if (num === 0) return MARATHI_DIGITS[0];
+  if (num >= 1 && num <= 99) return MARATHI_NUMBERS[num - 1];
+  if (num === 100) return 'शंभर';
+  return String(num);
 }
 
-// ─── Dynamic Math Generation ─────────────────────────────────────────
-function generateQuestion(maxAnswer = 99) {
-  const answer = Math.floor(Math.random() * maxAnswer) + 1; // 1 to maxAnswer
-  const a = Math.floor(Math.random() * answer);
-  const b = answer - a;
-  const tens_a = Math.floor(a / 10);
-  const ones_a = a % 10;
-  const tens_b = Math.floor(b / 10);
-  const ones_b = b % 10;
+export interface Question {
+  display: string;
+  marathi: string;
+  answer: number;
+  answerMarathi: string;
+}
 
-  // Build Marathi spoken form for TTS
+export interface FeedbackState {
+  correct: boolean;
+  userAnswer: number;
+  matchType: 'exact' | 'accepted_runner_up' | 'mismatch';
+  details?: any;
+}
+
+// ─── Difficulty Levels ───────────────────────────────────────────────
+const LEVEL_DATA = [
+  { key: 1, title: 'Level 1', subtitle: 'पातळी १', desc: 'Single-digit Addition (० ते ९ बेरीज)', ops: ['+'], maxNum: 9, icon: 'star', color: '#4CAF50', bg: '#E8F5E9' },
+  { key: 2, title: 'Level 2', subtitle: 'पातळी २', desc: 'Addition & Subtraction (बेरीज व वजाबाकी)', ops: ['+', '-'], maxNum: 50, icon: 'trending-up', color: '#FF9800', bg: '#FFF3E0' },
+  { key: 3, title: 'Level 3', subtitle: 'पातळी ३', desc: 'Add, Subtract & Multiply (गुणाकारसहित)', ops: ['+', '-', '×'], maxNum: 99, icon: 'zap', color: '#E91E63', bg: '#FCE4EC' },
+];
+
+const MARATHI_OPS: Record<string, string> = { '+': 'अधिक', '-': 'वजा', '×': 'गुणिले' };
+
+// ─── Dynamic Math Generation ─────────────────────────────────────────
+function generateQuestion(level = 1): Question {
+  const lvl = LEVEL_DATA.find(l => l.key === level) || LEVEL_DATA[0];
+  const ops = lvl.ops;
+  const op = ops[Math.floor(Math.random() * ops.length)];
+
+  let a: number, b: number, answer: number;
+
+  if (level === 1) {
+    // Level 1: single digit answers (0 to 9)
+    answer = Math.floor(Math.random() * 9) + 1; // 1 to 9
+    a = Math.floor(Math.random() * answer);
+    b = answer - a;
+  } else if (op === '+') {
+    answer = Math.floor(Math.random() * Math.min(lvl.maxNum, 99)) + 1;
+    a = Math.floor(Math.random() * answer);
+    b = answer - a;
+  } else if (op === '-') {
+    a = Math.floor(Math.random() * 50) + 10;
+    b = Math.floor(Math.random() * (a - 1)) + 1;
+    answer = a - b;
+    if (answer < 1 || answer > 99) { a = 15; b = 7; answer = 8; }
+  } else {
+    // Multiplication
+    const pairs: [number, number][] = [];
+    for (let i = 2; i <= 9; i++) {
+      for (let j = 2; j <= 9; j++) {
+        if (i * j <= 99) pairs.push([i, j]);
+      }
+    }
+    const pair = pairs[Math.floor(Math.random() * pairs.length)];
+    a = pair[0];
+    b = pair[1];
+    answer = a * b;
+  }
+
   const marathiA = a === 0 ? MARATHI_DIGITS[0] : (MARATHI_NUMBERS[a - 1] || String(a));
   const marathiB = b === 0 ? MARATHI_DIGITS[0] : (MARATHI_NUMBERS[b - 1] || String(b));
+  const marathiOp = MARATHI_OPS[op] || op;
 
   return {
-    display: a + ' + ' + b + ' = ?',
-    marathi: marathiA + ' अधिक ' + marathiB,
+    display: `${a} ${op} ${b} = ?`,
+    marathi: `${marathiA} ${marathiOp} ${marathiB}`,
     answer,
-    answerMarathi: MARATHI_NUMBERS[answer - 1] || String(answer),
+    answerMarathi: getMarathiWord(answer),
   };
 }
 
-function generateMCQOptions(correct) {
-  const options = new Set([correct]);
+function generateMCQOptions(correct: number): number[] {
+  const options = new Set<number>([correct]);
   while (options.size < 4) {
     const offset = Math.floor(Math.random() * 10) - 5;
     let opt = correct + offset;
-    if (opt < 1) opt = Math.floor(Math.random() * 99) + 1;
+    if (opt < 0) opt = Math.floor(Math.random() * 9) + 1;
     if (opt > 99) opt = Math.floor(Math.random() * 99) + 1;
     options.add(opt);
   }
   return [...options].sort(() => Math.random() - 0.5);
 }
 
-// ─── Screens ─────────────────────────────────────────────────────────
+// ─── 2 Core Modes (Voice mode removed as requested) ──────────────────
 const MODE_DATA = [
-  { key: 'mcq', title: 'Listen & Choose', subtitle: 'ऐका आणि निवडा', desc: 'App speaks Marathi, pick the right answer', icon: 'grid', color: '#F6A64A', bg: '#FFF8EE' },
-  { key: 'scribble', title: 'Listen & Draw', subtitle: 'ऐका आणि लिहा', desc: 'App speaks, you draw the number', icon: 'edit-2', color: '#48A995', bg: '#EEFBF7' },
-  { key: 'voice', title: 'Look & Speak', subtitle: 'पहा आणि बोला', desc: 'See question, speak answer in English (offline)', icon: 'mic', color: '#7184E6', bg: '#F0F0FF' },
+  {
+    key: 'mcq',
+    title: 'Listen & Choose',
+    subtitle: 'ऐका आणि निवडा',
+    desc: 'App speaks Marathi question, choose the right answer',
+    icon: 'grid' as const,
+    color: '#F6A64A',
+    bg: '#FFF8EE',
+  },
+  {
+    key: 'scribble',
+    title: 'Listen & Draw',
+    subtitle: 'ऐका आणि लिहा',
+    desc: 'App speaks, draw your answer in Devanagari on slate',
+    icon: 'edit-2' as const,
+    color: '#48A995',
+    bg: '#EEFBF7',
+  },
 ];
 
 // ═════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═════════════════════════════════════════════════════════════════════
 export default function AnkGuruHome() {
-  const [screen, setScreen] = useState('home');
-  const [mode, setMode] = useState('mcq');
-  const [questions, setQuestions] = useState([]);
-  const [qIndex, setQIndex] = useState(0);
-  const [score, setScore] = useState(0);
+  const [screen, setScreen] = useState<'home' | 'level' | 'practice' | 'summary'>('home');
+  const [mode, setMode] = useState<string>('mcq');
+  const [level, setLevel] = useState<number>(1);
+  const [numQuestions, setNumQuestions] = useState<number>(10); // 5 to 20 configurable
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [qIndex, setQIndex] = useState<number>(0);
+  const [score, setScore] = useState<number>(0);
 
-  const startGame = (selectedMode) => {
+  const selectMode = (selectedMode: string) => {
     setMode(selectedMode);
-    const qs = Array.from({ length: NUM_QUESTIONS }, () => generateQuestion(99));
+    setScreen('level');
+  };
+
+  const startGame = (selectedLevel: number, chosenCount: number = numQuestions) => {
+    setLevel(selectedLevel);
+    const validCount = Math.min(20, Math.max(5, chosenCount));
+    const qs = Array.from({ length: validCount }, () => generateQuestion(selectedLevel));
     setQuestions(qs);
     setQIndex(0);
     setScore(0);
     setScreen('practice');
   };
 
-  const handleAnswer = (correct) => {
+  const handleAnswer = (correct: boolean) => {
     if (correct) setScore(s => s + 1);
-    if (qIndex + 1 >= NUM_QUESTIONS) {
+    if (qIndex + 1 >= questions.length) {
       setScreen('summary');
     } else {
       setQIndex(i => i + 1);
     }
   };
 
-  if (screen === 'home') return <HomeScreen onStart={startGame} />;
-  if (screen === 'summary') return <SummaryScreen score={score} total={NUM_QUESTIONS} onRestart={() => startGame(mode)} onGoHome={() => setScreen('home')} />;
+  if (screen === 'home') {
+    return <HomeScreen onStart={selectMode} />;
+  }
+
+  if (screen === 'level') {
+    return (
+      <LevelScreen
+        mode={mode}
+        numQuestions={numQuestions}
+        onSetNumQuestions={setNumQuestions}
+        onSelect={(lvl: number) => startGame(lvl, numQuestions)}
+        onBack={() => setScreen('home')}
+      />
+    );
+  }
+
+  if (screen === 'summary') {
+    return (
+      <SummaryScreen
+        score={score}
+        total={questions.length}
+        level={level}
+        mode={mode}
+        onRestart={() => startGame(level, numQuestions)}
+        onGoHome={() => setScreen('home')}
+      />
+    );
+  }
 
   const q = questions[qIndex];
   if (!q) return null;
@@ -155,11 +213,12 @@ export default function AnkGuruHome() {
   return (
     <PracticeScreen
       mode={mode}
+      level={level}
       question={q}
       qNumber={qIndex + 1}
-      total={NUM_QUESTIONS}
+      total={questions.length}
       onAnswer={handleAnswer}
-      onBack={() => setScreen('home')}
+      onBack={() => setScreen('level')}
     />
   );
 }
@@ -167,7 +226,7 @@ export default function AnkGuruHome() {
 // ═════════════════════════════════════════════════════════════════════
 // HOME SCREEN
 // ═════════════════════════════════════════════════════════════════════
-function HomeScreen({ onStart }) {
+function HomeScreen({ onStart }: { onStart: (mode: string) => void }) {
   const cardAnims = useRef(MODE_DATA.map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
@@ -186,6 +245,9 @@ function HomeScreen({ onStart }) {
               <Feather name="sun" size={22} color="#FFF" />
             </View>
             <Text style={styles.brandText}>AnkGuru</Text>
+            <View style={styles.versionBadge}>
+              <Text style={styles.versionBadgeText}>v3.0</Text>
+            </View>
           </View>
           <Text style={styles.homeSubtitle}>गणित शिका • Learn Math • 100% Offline</Text>
         </View>
@@ -205,7 +267,7 @@ function HomeScreen({ onStart }) {
                   ]}
                 >
                   <View style={[styles.modeIconCircle, { backgroundColor: m.color }]}>
-                    <Feather name={m.icon} size={26} color="#FFF" />
+                    <Feather name={m.icon as any} size={26} color="#FFF" />
                   </View>
                   <View style={styles.modeCardText}>
                     <Text style={[styles.modeTitle, { color: m.color }]}>{m.title}</Text>
@@ -219,8 +281,140 @@ function HomeScreen({ onStart }) {
           })}
         </View>
 
-        <Text style={styles.footerText}>Tap a mode to start • 5 questions • Numbers 1-99</Text>
+        <View style={styles.offlinePill}>
+          <Feather name="check-circle" size={14} color="#48A995" />
+          <Text style={styles.offlinePillText}>High-Accuracy CNN • 100% Offline • No Internet Needed</Text>
+        </View>
       </View>
+    </SafeAreaView>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// LEVEL & QUESTION COUNT SELECTION SCREEN
+// ═════════════════════════════════════════════════════════════════════
+function LevelScreen({
+  mode,
+  numQuestions,
+  onSetNumQuestions,
+  onSelect,
+  onBack,
+}: {
+  mode: string;
+  numQuestions: number;
+  onSetNumQuestions: (n: number | ((prev: number) => number)) => void;
+  onSelect: (lvl: number) => void;
+  onBack: () => void;
+}) {
+  const cardAnims = useRef(LEVEL_DATA.map(() => new Animated.Value(0))).current;
+  const modeInfo = MODE_DATA.find(m => m.key === mode) || MODE_DATA[0];
+
+  useEffect(() => {
+    Animated.stagger(100, cardAnims.map(a =>
+      Animated.spring(a, { toValue: 1, useNativeDriver: true, tension: 60, friction: 8 })
+    )).start();
+  }, []);
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
+        <View style={styles.homeContainer}>
+          <View style={styles.levelHeader}>
+            <Pressable onPress={onBack} style={styles.backBtn}>
+              <Feather name="arrow-left" size={22} color="#17324D" />
+            </Pressable>
+            <View style={{ alignItems: 'center', flex: 1 }}>
+              <View style={[styles.modeIconCircle, { backgroundColor: modeInfo.color, width: 38, height: 38, borderRadius: 12 }]}>
+                <Feather name={modeInfo.icon as any} size={20} color="#FFF" />
+              </View>
+              <Text style={[styles.brandText, { fontSize: 22, marginTop: 6 }]}>{modeInfo.title}</Text>
+              <Text style={styles.homeSubtitle}>कठिणता आणि प्रश्न संख्या निवडा</Text>
+            </View>
+            <View style={styles.versionBadgeSmall}>
+              <Text style={styles.versionBadgeTextSmall}>v3.0</Text>
+            </View>
+          </View>
+
+          {/* Question Count Selector (5 to 20 questions) */}
+          <View style={styles.questionSelectorCard}>
+            <View style={styles.selectorTitleRow}>
+              <Feather name="list" size={18} color="#17324D" />
+              <Text style={styles.selectorTitle}>प्रश्नांची संख्या (Number of Questions)</Text>
+              <Text style={styles.selectorValueBadge}>{toDevanagari(numQuestions)} प्रश्न</Text>
+            </View>
+
+            <View style={styles.selectorControlsRow}>
+              {/* Presets: 5, 10, 15, 20 */}
+              <View style={styles.presetGroup}>
+                {[5, 10, 15, 20].map((count) => {
+                  const active = numQuestions === count;
+                  return (
+                    <Pressable
+                      key={count}
+                      onPress={() => onSetNumQuestions(count)}
+                      style={[styles.presetChip, active && styles.presetChipActive]}
+                    >
+                      <Text style={[styles.presetText, active && styles.presetTextActive]}>
+                        {toDevanagari(count)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* Stepper +/- */}
+              <View style={styles.stepperBox}>
+                <Pressable
+                  onPress={() => onSetNumQuestions((n: number) => Math.max(5, n - 1))}
+                  style={styles.stepperBtn}
+                >
+                  <Feather name="minus" size={16} color="#17324D" />
+                </Pressable>
+                <Text style={styles.stepperNumber}>{toDevanagari(numQuestions)}</Text>
+                <Pressable
+                  onPress={() => onSetNumQuestions((n: number) => Math.min(20, n + 1))}
+                  style={styles.stepperBtn}
+                >
+                  <Feather name="plus" size={16} color="#17324D" />
+                </Pressable>
+              </View>
+            </View>
+            <Text style={styles.selectorHint}>५ ते २० दरम्यान कितीही प्रश्न निवडू शकता.</Text>
+          </View>
+
+          {/* Difficulty Levels */}
+          <Text style={styles.sectionHeader}>कठिणता पातळी निवडा (Select Difficulty):</Text>
+          <View style={styles.cardsContainer}>
+            {LEVEL_DATA.map((lv, i) => {
+              const translateY = cardAnims[i].interpolate({ inputRange: [0, 1], outputRange: [30, 0] });
+              const opacity = cardAnims[i];
+              return (
+                <Animated.View key={lv.key} style={{ opacity, transform: [{ translateY }] }}>
+                  <Pressable
+                    onPress={() => onSelect(lv.key)}
+                    style={({ pressed }) => [
+                      styles.modeCard,
+                      { backgroundColor: lv.bg, borderColor: lv.color },
+                      pressed && styles.cardPressed,
+                    ]}
+                  >
+                    <View style={[styles.modeIconCircle, { backgroundColor: lv.color }]}>
+                      <Feather name={lv.icon as any} size={24} color="#FFF" />
+                    </View>
+                    <View style={styles.modeCardText}>
+                      <Text style={[styles.modeTitle, { color: lv.color }]}>{lv.title}</Text>
+                      <Text style={styles.modeSubtitle}>{lv.subtitle}</Text>
+                      <Text style={styles.modeDesc}>{lv.desc}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={22} color={lv.color} />
+                  </Pressable>
+                </Animated.View>
+              );
+            })}
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -228,25 +422,38 @@ function HomeScreen({ onStart }) {
 // ═════════════════════════════════════════════════════════════════════
 // PRACTICE SCREEN
 // ═════════════════════════════════════════════════════════════════════
-function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
-  const [feedback, setFeedback] = useState(null);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const feedbackTimeout = useRef(null);
-  const modeInfo = MODE_DATA.find(m => m.key === mode);
+function PracticeScreen({
+  mode,
+  level,
+  question,
+  qNumber,
+  total,
+  onAnswer,
+  onBack,
+}: {
+  mode: string;
+  level: number;
+  question: Question;
+  qNumber: number;
+  total: number;
+  onAnswer: (correct: boolean) => void;
+  onBack: () => void;
+}) {
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const modeInfo = MODE_DATA.find(m => m.key === mode) || MODE_DATA[0];
 
   useEffect(() => {
     setFeedback(null);
-    return () => { if (feedbackTimeout.current) clearTimeout(feedbackTimeout.current); };
   }, [question]);
 
   useEffect(() => {
-    if (mode !== 'voice') speakQuestion();
-  }, [question, mode]);
+    speakQuestion();
+  }, [question]);
 
   const speakQuestion = async () => {
     if (isSpeaking) return;
     setIsSpeaking(true);
-    // Try Marathi first, fallback to English reading of the expression
     try {
       const voices = await Speech.getAvailableVoicesAsync();
       const hasMarathi = voices.some(v => v.language && v.language.startsWith('mr'));
@@ -257,7 +464,6 @@ function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
           onDone: () => setIsSpeaking(false),
           onStopped: () => setIsSpeaking(false),
           onError: () => {
-            // Fallback to English
             Speech.speak(question.display.replace('?', 'what'), {
               language: 'en-IN',
               rate: 0.85,
@@ -268,7 +474,6 @@ function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
           },
         });
       } else {
-        // No Marathi TTS available, use English
         Speech.speak(question.display.replace('?', 'what'), {
           language: 'en-IN',
           rate: 0.85,
@@ -288,11 +493,27 @@ function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
     }
   };
 
-  const submitAnswer = (userAnswer) => {
+  const submitAnswer = (userAnswer: number, details: any = null) => {
     if (feedback) return;
-    const correct = userAnswer === question.answer;
-    setFeedback({ correct, userAnswer });
-    feedbackTimeout.current = setTimeout(() => onAnswer(correct), 1800);
+
+    if (mode === 'mcq') {
+      const correct = userAnswer === question.answer;
+      setFeedback({
+        correct,
+        userAnswer,
+        matchType: correct ? 'exact' : 'mismatch',
+        details: null,
+      });
+      return;
+    }
+
+    // Scribble Mode with Secondary Probability Matching
+    setFeedback({
+      correct: details ? details.correct : (userAnswer === question.answer),
+      userAnswer,
+      matchType: details ? details.matchType : (userAnswer === question.answer ? 'exact' : 'mismatch'),
+      details,
+    });
   };
 
   const progressPct = (qNumber / total) * 100;
@@ -305,60 +526,97 @@ function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
           <Pressable onPress={onBack} style={styles.backBtn}>
             <Feather name="arrow-left" size={22} color="#17324D" />
           </Pressable>
-          <Text style={[styles.practiceTitle, { color: modeInfo.color }]}>{modeInfo.title}</Text>
-          <View style={{ width: 40 }} />
+          <Text style={[styles.practiceTitle, { color: modeInfo.color }]}>{modeInfo.title} • L{level}</Text>
+          <View style={styles.versionBadgeSmall}>
+            <Text style={styles.versionBadgeTextSmall}>v3.0</Text>
+          </View>
         </View>
 
         <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: progressPct + '%', backgroundColor: modeInfo.color }]} />
+          <View style={[styles.progressFill, { width: `${progressPct}%`, backgroundColor: modeInfo.color }]} />
         </View>
-        <Text style={styles.progressText}>Question {toDevanagari(qNumber)} of {toDevanagari(total)}</Text>
+        <Text style={styles.progressText}>प्रश्न {toDevanagari(qNumber)} / {toDevanagari(total)} (Question {qNumber} of {total})</Text>
 
         <View style={styles.questionCard}>
-          {mode === 'voice' ? (
-            <>
-              <Text style={styles.qLabel}>What is:</Text>
-              <Text style={styles.qText}>{toDevanagari(question.display)}</Text>
-              <Text style={styles.qHint}>Speak the answer in English</Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.qLabel}>{mode === 'scribble' ? 'Solve & Draw the answer:' : 'Listen to the question'}</Text>
-              <Text style={styles.qText}>{toDevanagari(question.display)}</Text>
-              <Pressable onPress={speakQuestion} style={styles.speakBtn}>
-                <Feather name={isSpeaking ? 'volume-2' : 'play-circle'} size={28} color={isSpeaking ? modeInfo.color : '#8A969E'} />
-                <Text style={[styles.speakText, isSpeaking && { color: modeInfo.color }]}>
-                  {isSpeaking ? 'Speaking...' : 'Tap to hear'}
-                </Text>
-              </Pressable>
-            </>
-          )}
+          <Text style={styles.qLabel}>
+            {mode === 'scribble' ? 'पाटीवर देवनागरी अंक लिहा (Draw the answer in Devanagari):' : 'योग्य पर्याय निवडा (Choose the right answer):'}
+          </Text>
+          <Text style={styles.qText}>{toDevanagari(question.display)}</Text>
+          <Pressable onPress={speakQuestion} style={styles.speakBtn}>
+            <Feather name={isSpeaking ? 'volume-2' : 'play-circle'} size={24} color={isSpeaking ? modeInfo.color : '#8A969E'} />
+            <Text style={[styles.speakText, isSpeaking && { color: modeInfo.color }]}>
+              {isSpeaking ? 'बोलत आहे...' : 'ऐकण्यासाठी दाबा (Tap to hear)'}
+            </Text>
+          </Pressable>
         </View>
 
-        <ScrollView style={styles.interactionArea} contentContainerStyle={{ flexGrow: 1, paddingBottom: 30 }}>
-          {mode === 'mcq' && !feedback && (
-            <MCQPanel question={question} onSelect={submitAnswer} color={modeInfo.color} />
-          )}
-          {mode === 'scribble' && !feedback && (
-            <ScribblePanel question={question} onResult={submitAnswer} color={modeInfo.color} />
-          )}
-          {mode === 'voice' && !feedback && (
-            <VoicePanel question={question} onResult={submitAnswer} color={modeInfo.color} />
-          )}
-
-          {feedback && (
-            <View style={[styles.feedbackCard, feedback.correct ? styles.feedbackCorrect : styles.feedbackWrong]}>
-              <Feather name={feedback.correct ? 'check-circle' : 'x-circle'} size={36} color="#FFF" />
-              <View style={{ marginLeft: 14, flex: 1 }}>
-                <Text style={styles.feedbackTitle}>{feedback.correct ? 'Correct! बरोबर!' : 'Wrong! चुकीचे!'}</Text>
-                <Text style={styles.feedbackSub}>Answer: {toDevanagari(question.answer)} ({question.answerMarathi})</Text>
-                {feedback.userAnswer !== undefined && (
-                  <Text style={[styles.feedbackSub, { marginTop: 4, fontStyle: 'italic', opacity: 0.9, fontSize: 13 }]}>
-                    (Detected: {toDevanagari(feedback.userAnswer)})
+        <ScrollView style={styles.interactionArea} contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}>
+          {feedback ? (
+            <View style={styles.feedbackContainer}>
+              {/* Feedback Banner */}
+              <View style={[
+                styles.feedbackBanner,
+                feedback.correct ? styles.bannerCorrect : styles.bannerWrong
+              ]}>
+                <Feather
+                  name={feedback.correct ? "check-circle" : "x-circle"}
+                  size={32}
+                  color="#FFF"
+                />
+                <View style={{ marginLeft: 12, flex: 1 }}>
+                  <Text style={styles.bannerTitle}>
+                    {feedback.correct ? "Correct! - बरोबर!" : "Wrong! - चूक!"}
                   </Text>
-                )}
+                  <Text style={styles.bannerSubtitle}>
+                    {feedback.correct ? "अचूक उत्तर (Exact Match)" : "पुन्हा प्रयत्न करा (Keep practicing)"}
+                  </Text>
+                </View>
               </View>
+
+              <View style={styles.feedbackDetailCard}>
+                <View style={styles.feedbackItem}>
+                  <Text style={styles.feedbackLabel}>अपेक्षित उत्तर (Expected Answer):</Text>
+                  <Text style={[styles.feedbackValueBold, { color: "#48A995" }]}>
+                    {toDevanagari(question.answer)} ({question.answer})
+                  </Text>
+                </View>
+                <View style={styles.feedbackDivider} />
+                <View style={styles.feedbackItem}>
+                  <Text style={styles.feedbackLabel}>दिलेले उत्तर (Your Answer):</Text>
+                  <Text style={[
+                    styles.feedbackValueBold,
+                    { color: feedback.correct ? "#48A995" : "#E95757" }
+                  ]}>
+                    {feedback.userAnswer !== undefined && feedback.userAnswer !== null
+                      ? `${toDevanagari(feedback.userAnswer)} (${feedback.userAnswer})`
+                      : "काहीही नाही"}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Next Question / Proceed Button (Waits for tap, never auto-advances) */}
+              <Pressable
+                onPress={() => onAnswer(feedback.correct)}
+                style={({ pressed }) => [
+                  styles.nextQuestionBtn,
+                  { backgroundColor: modeInfo.color },
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                ]}
+              >
+                <Text style={styles.nextQuestionBtnText}>
+                  {qNumber < total ? 'पुढचा प्रश्न (Next Question) ➔' : 'निकाल पहा (View Results) ➔'}
+                </Text>
+              </Pressable>
             </View>
+          ) : (
+            <>
+              {mode === 'mcq' && (
+                <MCQPanel question={question} onSelect={submitAnswer} color={modeInfo.color} />
+              )}
+              {mode === 'scribble' && (
+                <ScribblePanel question={question} onResult={submitAnswer} color={modeInfo.color} />
+              )}
+            </>
           )}
         </ScrollView>
       </View>
@@ -369,9 +627,16 @@ function PracticeScreen({ mode, question, qNumber, total, onAnswer, onBack }) {
 // ═════════════════════════════════════════════════════════════════════
 // MCQ PANEL
 // ═════════════════════════════════════════════════════════════════════
-
-function MCQPanel({ question, onSelect, color }) {
-  const options = React.useMemo(() => generateMCQOptions(question.answer), [question]);
+function MCQPanel({
+  question,
+  onSelect,
+  color,
+}: {
+  question: Question;
+  onSelect: (opt: number) => void;
+  color: string;
+}) {
+  const options = useMemo(() => generateMCQOptions(question.answer), [question]);
   return (
     <View style={styles.mcqGrid}>
       {options.map((opt, i) => (
@@ -384,7 +649,7 @@ function MCQPanel({ question, onSelect, color }) {
           ]}
         >
           <Text style={styles.mcqText}>{toDevanagari(opt)}</Text>
-          <Text style={styles.mcqMarathi}>{MARATHI_NUMBERS[opt - 1] || opt}</Text>
+          <Text style={styles.mcqMarathi}>{getMarathiWord(opt)}</Text>
         </Pressable>
       ))}
     </View>
@@ -392,442 +657,134 @@ function MCQPanel({ question, onSelect, color }) {
 }
 
 // ═════════════════════════════════════════════════════════════════════
-// SCRIBBLE PANEL (2-digit support)
+// SCRIBBLE PANEL (Powered by AnkGuru Offline CNN Canvas)
 // ═════════════════════════════════════════════════════════════════════
-function ScribblePanel({ question, onResult, color }) {
-  const sigRef1 = useRef(null);
-  const sigRef2 = useRef(null);
-  const mlWebViewRef = useRef(null);
-  const [hasDrawn1, setHasDrawn1] = useState(false);
-  const [hasDrawn2, setHasDrawn2] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  
-  // queue holds refs to process: ['ref1', 'ref2']
-  const processingQueue = useRef([]);
-  const firstDigit = useRef(null);
-  
+function ScribblePanel({
+  question,
+  onResult,
+  color,
+}: {
+  question: Question;
+  onResult: (userAnswer: number, details?: any) => void;
+  color: string;
+}) {
+  const webRef = useRef<any>(null);
   const isTwoDigit = question.answer >= 10;
-  const canSubmit = isTwoDigit ? (hasDrawn1 && hasDrawn2) : hasDrawn1;
+  const htmlContent = useMemo(() => getScribbleEngineHtml(isTwoDigit), [isTwoDigit]);
 
   useEffect(() => {
-    setHasDrawn1(false);
-    setHasDrawn2(false);
-    setIsProcessing(false);
-    processingQueue.current = [];
-    firstDigit.current = null;
-    if (sigRef1.current) sigRef1.current.clearSignature();
-    if (sigRef2.current) sigRef2.current.clearSignature();
+    webRef.current?.injectJavaScript("if(window.resetBoard) window.resetBoard(); true;");
   }, [question]);
 
-  const handleSubmit = () => {
-    if (isProcessing || !canSubmit) return;
-    setIsProcessing(true);
-    
-    if (isTwoDigit) {
-      processingQueue.current = ['ref2']; // next to process after ref1
-      sigRef1.current.readSignature(); // start with first digit
-    } else {
-      processingQueue.current = [];
-      sigRef1.current.readSignature();
-    }
-  };
-
-  const handleSignatureOK = (signature) => {
-    if (mlWebViewRef.current) mlWebViewRef.current.postMessage(signature);
-  };
-
-  const handleMlMessage = (event) => {
+  const handleMessage = (event: any) => {
     try {
-      const result = JSON.parse(event.nativeEvent.data);
-      if (result.type === 'prediction') {
-        const digit = result.digit;
-        if (digit === -1) {
-          setIsProcessing(false);
-          return;
-        }
-
-        if (processingQueue.current.length > 0) {
-          // Finished first digit of a two-digit number
-          firstDigit.current = digit;
-          const nextRefStr = processingQueue.current.shift();
-          if (nextRefStr === 'ref2' && sigRef2.current) {
-             sigRef2.current.readSignature();
-          }
-        } else {
-          // Finished last digit (or only digit)
-          setIsProcessing(false);
-          if (isTwoDigit && firstDigit.current !== null) {
-            onResult(firstDigit.current * 10 + digit);
-          } else {
-            onResult(digit);
-          }
-        }
-      }
-    } catch (err) {
-      console.error('ML parse error:', err);
-      setIsProcessing(false);
-    }
-  };
-
-  const handleClear = () => {
-    if (sigRef1.current) sigRef1.current.clearSignature();
-    if (sigRef2.current) sigRef2.current.clearSignature();
-    setHasDrawn1(false);
-    setHasDrawn2(false);
-  };
-
-  const canvasWebStyle = '.m-signature-pad { box-shadow: none; border: none; margin: 0; padding: 0; } .m-signature-pad--body { border: none; } .m-signature-pad--footer { display: none; } body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #F8FAFC; } canvas { width: 100% !important; height: 100% !important; }';
-
-  return (
-    <View>
-      <WebView
-        ref={mlWebViewRef}
-        source={{ html: getMlHtml() }}
-        onMessage={handleMlMessage}
-        style={{ width: 0, height: 0, position: 'absolute' }}
-      />
-
-      {isTwoDigit && (
-        <View style={styles.digitStepRow}>
-          <View style={[styles.digitStepBadge, { flex: 1, marginRight: 4, alignItems: 'center' }]}>
-            <Text style={styles.digitStepText}>10s Digit (Tens)</Text>
-          </View>
-          <View style={[styles.digitStepBadge, { flex: 1, marginLeft: 4, alignItems: 'center' }]}>
-            <Text style={styles.digitStepText}>1s Digit (Units)</Text>
-          </View>
-        </View>
-      )}
-
-      <View style={{ flexDirection: 'row', width: '100%', height: CANVAS_HEIGHT, borderColor: color, borderWidth: 2, borderRadius: 12, overflow: 'hidden', backgroundColor: '#F8FAFC' }}>
-        <View style={{ flex: 1, borderRightWidth: isTwoDigit ? 2 : 0, borderRightColor: '#E2E8F0' }}>
-          <SignatureScreen
-            ref={sigRef1}
-            onOK={handleSignatureOK}
-            onBegin={() => setHasDrawn1(true)}
-            onEmpty={() => setHasDrawn1(false)}
-            webStyle={canvasWebStyle}
-            backgroundColor="#F8FAFC"
-            penColor="#17324D"
-            minWidth={4}
-            maxWidth={8}
-            dotSize={6}
-            trimWhitespace={true}
-          />
-        </View>
-        {isTwoDigit && (
-          <View style={{ flex: 1 }}>
-            <SignatureScreen
-              ref={sigRef2}
-              onOK={handleSignatureOK}
-              onBegin={() => setHasDrawn2(true)}
-              onEmpty={() => setHasDrawn2(false)}
-              webStyle={canvasWebStyle}
-              backgroundColor="#F8FAFC"
-              penColor="#17324D"
-              minWidth={4}
-              maxWidth={8}
-              dotSize={6}
-              trimWhitespace={true}
-            />
-          </View>
-        )}
-      </View>
-
-      <View style={styles.canvasBtnRow}>
-        <Pressable onPress={handleClear} style={[styles.canvasBtn, { borderColor: '#E95757' }]}>
-          <Feather name="trash-2" size={18} color="#E95757" />
-          <Text style={[styles.canvasBtnText, { color: '#E95757' }]}>Clear All</Text>
-        </Pressable>
-        <Pressable
-          onPress={handleSubmit}
-          style={[styles.canvasBtn, styles.canvasSubmitBtn, { backgroundColor: canSubmit ? color : '#CCC' }]}
-          disabled={!canSubmit || isProcessing}
-        >
-          {isProcessing ? (
-            <ActivityIndicator size="small" color="#FFF" />
-          ) : (
-            <>
-              <Feather name="check" size={18} color="#FFF" />
-              <Text style={[styles.canvasBtnText, { color: '#FFF' }]}>Submit</Text>
-            </>
-          )}
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-// ═════════════════════════════════════════════════════════════════════
-// VOICE PANEL (Whisper Offline English)
-// ═════════════════════════════════════════════════════════════════════
-function VoicePanel({ question, onResult, color }) {
-  const [whisperCtx, setWhisperCtx] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [error, setError] = useState('');
-  const audioChunks = useRef([]);
-  const isTranscribingRef = useRef(false);
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const pulseAnim = useRef(new Animated.Value(0)).current;
-
-  // Load Whisper model
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        console.log('[ASR] Loading Whisper Base model...');
-        const ctx = await initWhisper({ filePath: MODEL_ASSET });
-        if (!cancelled) {
-          setWhisperCtx(ctx);
-          setIsLoading(false);
-          console.log('[ASR] Whisper Base loaded successfully');
-        }
-      } catch (err) {
-        console.error('[ASR] Whisper load error:', err);
-        setError('Failed to load AI model');
-        setIsLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  // Mic permission
-  useEffect(() => {
-    if (Platform.OS === 'android') {
-      PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
-    }
-  }, []);
-
-  // Pulse animation
-  useEffect(() => {
-    if (isRecording) {
-      const loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
-        ])
-      );
-      loop.start();
-      return () => loop.stop();
-    }
-    pulseAnim.setValue(0);
-  }, [isRecording]);
-
-  const startRecording = async () => {
-    if (!whisperCtx || isRecording || isProcessing) return;
-    Animated.spring(scaleAnim, { toValue: 0.88, useNativeDriver: true }).start();
-
-    audioChunks.current = [];
-    setTranscript('');
-    setError('');
-
-    LiveAudioStream.init({
-      sampleRate: 16000,
-      channels: 1,
-      bitsPerSample: 16,
-      audioSource: 6,
-    });
-
-    LiveAudioStream.on('data', (data) => {
-      audioChunks.current.push(data);
-    });
-
-    LiveAudioStream.start();
-    setIsRecording(true);
-    console.log('[ASR] Recording started');
-  };
-
-  const stopRecording = async () => {
-    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
-    if (!isRecording) return;
-
-    LiveAudioStream.stop();
-    setIsRecording(false);
-    setIsProcessing(true);
-    console.log('[ASR] Recording stopped, chunks:', audioChunks.current.length);
-
-    try {
-      // Convert base64 PCM chunks to WAV file
-      const pcmBuffers = audioChunks.current.map(b64 => Buffer.from(b64, 'base64'));
-      const totalLength = pcmBuffers.reduce((sum, buf) => sum + buf.length, 0);
-      const pcmData = Buffer.concat(pcmBuffers, totalLength);
-
-      // Create WAV header
-      const wavHeader = Buffer.alloc(44);
-      wavHeader.write('RIFF', 0);
-      wavHeader.writeUInt32LE(36 + pcmData.length, 4);
-      wavHeader.write('WAVE', 8);
-      wavHeader.write('fmt ', 12);
-      wavHeader.writeUInt32LE(16, 16);
-      wavHeader.writeUInt16LE(1, 20);
-      wavHeader.writeUInt16LE(1, 22);
-      wavHeader.writeUInt32LE(16000, 24);
-      wavHeader.writeUInt32LE(32000, 28);
-      wavHeader.writeUInt16LE(2, 32);
-      wavHeader.writeUInt16LE(16, 34);
-      wavHeader.write('data', 36);
-      wavHeader.writeUInt32LE(pcmData.length, 40);
-
-      const wavBuffer = Buffer.concat([wavHeader, pcmData]);
-      const wavPath = FileSystem.cacheDirectory + 'voice_input.wav';
-      await FileSystem.writeAsStringAsync(wavPath, wavBuffer.toString('base64'), {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      // Transcribe with Whisper (English)
-      // Wait if another transcription is still running
-      if (isTranscribingRef.current) {
-        console.log('[ASR] Waiting for previous transcription to finish...');
-        let retries = 0;
-        while (isTranscribingRef.current && retries < 30) {
-          await new Promise(r => setTimeout(r, 200));
-          retries++;
-        }
-      }
-      isTranscribingRef.current = true;
-      console.log('[ASR] Transcribing with Whisper...');
-      let result;
-      try {
-        const transcribeRes = whisperCtx.transcribe(wavPath, {
-          language: 'en',
-          tokenTimestamps: false,
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type === "prediction") {
+        const detected = data.isTwoDigit
+          ? (data.tens.top1.digit * 10 + data.units.top1.digit)
+          : data.top1.digit;
+        const isCorrect = detected === question.answer;
+        onResult(detected, {
+          correct: isCorrect,
+          matchType: isCorrect ? "exact" : "mismatch",
+          top1: detected,
+          explanation: `ओळखलेला अंक: ${toDevanagari(detected)}`,
         });
-        result = await transcribeRes.promise;
-      } finally {
-        isTranscribingRef.current = false;
-      }
-
-      console.log('[ASR] Full Whisper result object:', JSON.stringify(result));
-      const rawText = (result?.result || '').trim();
-      console.log('[ASR] Whisper result:', rawText);
-      setTranscript(rawText);
-
-      // Parse the English result
-      const parsed = parseEnglishNumber(rawText);
-      if (parsed !== null) {
-        console.log('[ASR] Parsed number:', parsed);
-        setTimeout(() => onResult(parsed), 500);
-      } else {
-        setError('Could not understand. Try again.');
       }
     } catch (err) {
-      console.error('[ASR] Transcription error:', err);
-      setError('Transcription failed');
-    } finally {
-      setIsProcessing(false);
+      console.error("Error handling prediction:", err);
     }
   };
 
-  const pulseOpacity = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] });
-
-  if (isLoading) {
-    return (
-      <View style={styles.voiceContainer}>
-        <ActivityIndicator size="large" color={color} />
-        <Text style={styles.voiceHint}>Loading AI Model...</Text>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.voiceContainer}>
-      <Text style={styles.voiceHint}>
-        {isProcessing ? '⚙️ Processing...' : isRecording ? '🎤 Listening... Release to stop' : error ? '❌ ' + error : '🎤 Hold the button & speak in English'}
-      </Text>
-
-      <View style={styles.micWrapper}>
-        {isRecording && (
-          <Animated.View style={[styles.pulseRing, { opacity: pulseOpacity, backgroundColor: color }]} />
-        )}
-        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-          <Pressable
-            onPressIn={startRecording}
-            onPressOut={stopRecording}
-            style={[styles.micButton, { backgroundColor: isRecording ? '#4CAF50' : isProcessing ? '#888' : color }]}
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <ActivityIndicator size="large" color="#FFF" />
-            ) : (
-              <>
-                <Feather name={isRecording ? 'radio' : 'mic'} size={42} color="#FFF" />
-                <Text style={styles.micLabel}>{isRecording ? 'Listening...' : 'Hold to Speak'}</Text>
-              </>
-            )}
-          </Pressable>
-        </Animated.View>
-      </View>
-
-      {transcript ? (
-        <View style={styles.transcriptBox}>
-          <Text style={styles.transcriptLabel}>Whisper heard:</Text>
-          <Text style={styles.transcriptText}>{transcript}</Text>
-        </View>
-      ) : null}
-
-      <View style={styles.offlineBadge}>
-        <Feather name="wifi-off" size={14} color="#48A995" />
-        <Text style={styles.offlineText}>100% Offline • No internet needed</Text>
-      </View>
+    <View style={styles.scribbleCard}>
+      <WebView
+        ref={webRef}
+        originWhitelist={["*"]}
+        source={{ html: htmlContent, baseUrl: "https://localhost" }}
+        onMessage={handleMessage}
+        style={styles.scribbleWebView}
+        javaScriptEnabled
+        domStorageEnabled
+        scrollEnabled={false}
+      />
     </View>
   );
 }
 
-// ═════════════════════════════════════════════════════════════════════
+// ───
 // SUMMARY SCREEN
-// ═════════════════════════════════════════════════════════════════════
-function SummaryScreen({ score, total, onRestart, onGoHome }) {
+// ───
+function SummaryScreen({
+  score,
+  total,
+  level,
+  mode,
+  onRestart,
+  onGoHome,
+}: {
+  score: number;
+  total: number;
+  level: number;
+  mode: string;
+  onRestart: () => void;
+  onGoHome: () => void;
+}) {
   const pct = Math.round((score / total) * 100);
   const emoji = pct === 100 ? '🏆' : pct >= 60 ? '🎉' : '💪';
   const message = pct === 100 ? 'Perfect! शाबास!' : pct >= 60 ? 'Great Job! छान!' : 'Keep Practicing! पुन्हा प्रयत्न करा!';
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
-  const scaleAnim = useRef(new Animated.Value(0.5)).current;
   useEffect(() => {
-    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 50, friction: 6 }).start();
+    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 60, friction: 7 }).start();
   }, []);
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: '#F0F9FF' }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F0F9FF" />
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
       <View style={styles.summaryContainer}>
         <Animated.View style={[styles.summaryCard, { transform: [{ scale: scaleAnim }] }]}>
           <Text style={styles.summaryEmoji}>{emoji}</Text>
-          <Text style={styles.summaryTitle}>Session Complete!</Text>
+          <Text style={styles.summaryTitle}>सत्र पूर्ण! (Session Complete)</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            <Text style={{ fontSize: 14, color: '#7A8994', fontWeight: '600' }}>
+              Level {level} • {MODE_DATA.find(m => m.key === mode)?.title} • {total} प्रश्न
+            </Text>
+            <View style={styles.versionBadgeSmall}>
+              <Text style={styles.versionBadgeTextSmall}>v3.0</Text>
+            </View>
+          </View>
           <Text style={styles.summaryMessage}>{message}</Text>
 
           <View style={styles.statRow}>
             <View style={styles.statBox}>
-              <Text style={styles.statNum}>{total}</Text>
-              <Text style={styles.statLabel}>Questions</Text>
+              <Text style={styles.statNum}>{toDevanagari(score)}</Text>
+              <Text style={styles.statLabel}>बरोबर (Correct)</Text>
             </View>
             <View style={[styles.statBox, styles.statBorder]}>
-              <Text style={[styles.statNum, { color: '#48A995' }]}>{score}</Text>
-              <Text style={styles.statLabel}>Correct ✓</Text>
+              <Text style={styles.statNum}>{toDevanagari(total - score)}</Text>
+              <Text style={styles.statLabel}>चुकीचे (Incorrect)</Text>
             </View>
             <View style={[styles.statBox, styles.statBorder]}>
-              <Text style={[styles.statNum, { color: '#E95757' }]}>{total - score}</Text>
-              <Text style={styles.statLabel}>Wrong ✗</Text>
+              <Text style={styles.statNum}>{toDevanagari(pct)}%</Text>
+              <Text style={styles.statLabel}>अचूकता (Accuracy)</Text>
             </View>
           </View>
 
           <View style={styles.scoreBar}>
-            <View style={[styles.scoreBarFill, { width: pct + '%' }]} />
+            <View style={[styles.scoreBarFill, { width: `${pct}%` }]} />
           </View>
-          <Text style={styles.scorePct}>{pct}% Accuracy</Text>
-        </Animated.View>
 
-        <View style={{ flexDirection: 'row', gap: 14, width: '100%' }}>
-          <Pressable onPress={onGoHome} style={({ pressed }) => [styles.homeBtn, pressed && { opacity: 0.8 }]}>
-            <Feather name="home" size={22} color="#17324D" style={{ marginRight: 8 }} />
-            <Text style={styles.homeBtnText}>Home</Text>
+          <Pressable onPress={onRestart} style={styles.restartBtn}>
+            <Feather name="rotate-ccw" size={20} color="#FFF" />
+            <Text style={styles.restartText}>पुन्हा खेळा (Play Again)</Text>
           </Pressable>
-          <Pressable onPress={onRestart} style={({ pressed }) => [styles.restartBtn, { flex: 1 }, pressed && { opacity: 0.8 }]}>
-            <Feather name="refresh-cw" size={22} color="#FFF" style={{ marginRight: 10 }} />
-            <Text style={styles.restartText}>Play Again</Text>
+
+          <Pressable onPress={onGoHome} style={styles.homeBtn}>
+            <Feather name="home" size={20} color="#17324D" />
+            <Text style={styles.homeBtnText}>मुख्य पान (Home)</Text>
           </Pressable>
-        </View>
+        </Animated.View>
       </View>
     </SafeAreaView>
   );
@@ -836,117 +793,223 @@ function SummaryScreen({ score, total, onRestart, onGoHome }) {
 // ═════════════════════════════════════════════════════════════════════
 // STYLES
 // ═════════════════════════════════════════════════════════════════════
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F8FAFC' },
-  homeContainer: { flex: 1, paddingHorizontal: 22 },
-  homeHeader: { alignItems: 'center', marginTop: 16, marginBottom: 20 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  brandIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#F6A64A', alignItems: 'center', justifyContent: 'center' },
-  brandText: { fontSize: 28, fontWeight: '800', color: '#17324D' },
-  homeSubtitle: { fontSize: 15, color: '#7A8994', marginTop: 4, fontWeight: '600' },
-  cardsContainer: { flex: 1, justifyContent: 'center', gap: 16 },
-  modeCard: {
-    flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: 20,
-    borderWidth: 2, gap: 14,
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3,
+  homeContainer: { flex: 1, paddingHorizontal: 20, paddingTop: 12 },
+  homeHeader: { marginBottom: 24 },
+  brandRow: { flexDirection: 'row', alignItems: 'center' },
+  brandIcon: {
+    width: 44, height: 44, borderRadius: 14, backgroundColor: '#F6A64A',
+    alignItems: 'center', justifyContent: 'center', marginRight: 12,
   },
-  cardPressed: { opacity: 0.8, transform: [{ scale: 0.97 }] },
-  modeIconCircle: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  brandText: { fontSize: 28, fontWeight: '800', color: '#17324D' },
+  homeSubtitle: { fontSize: 14, color: '#7A8994', marginTop: 4, fontWeight: '600' },
+  cardsContainer: { gap: 14 },
+  levelHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 14 },
+  modeCard: {
+    flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20,
+    borderWidth: 2, gap: 14,
+  },
+  cardPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+  modeIconCircle: { width: 50, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   modeCardText: { flex: 1 },
   modeTitle: { fontSize: 18, fontWeight: '800' },
-  modeSubtitle: { fontSize: 13, color: '#7A8994', fontWeight: '600', marginTop: 1 },
-  modeDesc: { fontSize: 12, color: '#A1ADB4', marginTop: 3 },
-  footerText: { textAlign: 'center', color: '#A1ADB4', fontSize: 13, paddingBottom: 16, fontWeight: '600' },
-
-  practiceContainer: { flex: 1, backgroundColor: '#F8FAFC' },
-  practiceTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 10 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#EEF2F6', alignItems: 'center', justifyContent: 'center' },
-  practiceTitle: { fontSize: 18, fontWeight: '800' },
-  progressBar: { height: 6, backgroundColor: '#EEF2F6', borderRadius: 99, marginHorizontal: 18, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 99 },
-  progressText: { fontSize: 13, color: '#7A8994', textAlign: 'center', marginTop: 6, fontWeight: '600' },
-  questionCard: {
-    margin: 18, backgroundColor: '#FFF', borderRadius: 24, padding: 24, alignItems: 'center',
-    shadowColor: '#17324D', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4,
+  modeSubtitle: { fontSize: 13, color: '#7A8994', fontWeight: '600', marginTop: 2 },
+  modeDesc: { fontSize: 12, color: '#9AA7B0', marginTop: 4 },
+  offlinePill: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: '#EEFBF7', paddingVertical: 10, paddingHorizontal: 14,
+    borderRadius: 12, marginTop: 24,
   },
-  qLabel: { fontSize: 14, color: '#7A8994', fontWeight: '700', marginBottom: 6 },
-  qText: { fontSize: 42, fontWeight: '800', color: '#17324D', letterSpacing: 1 },
-  qHint: { fontSize: 13, color: '#A1ADB4', marginTop: 8, fontWeight: '600' },
-  speakBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  speakText: { fontSize: 16, color: '#8A969E', fontWeight: '700' },
-  interactionArea: { flex: 1, paddingHorizontal: 18 },
+  offlinePillText: { fontSize: 12, color: '#48A995', fontWeight: '700' },
 
-  mcqGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 14 },
-  mcqOption: {
-    width: '47%', backgroundColor: '#FFF', height: 90, borderRadius: 20,
+  // Question Selector
+  questionSelectorCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#DDE7EE',
+    shadowColor: '#17324D',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  selectorTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  selectorTitle: { fontSize: 14, fontWeight: '700', color: '#17324D', flex: 1 },
+  selectorValueBadge: {
+    backgroundColor: '#EEF2F6',
+    color: '#17324D',
+    fontWeight: '800',
+    fontSize: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  selectorControlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  presetGroup: { flexDirection: 'row', gap: 8 },
+  presetChip: {
+    width: 40, height: 40, borderRadius: 12, backgroundColor: '#F8FAFC',
+    borderWidth: 1.5, borderColor: '#DDE7EE',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#17324D', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2,
   },
-  mcqText: { fontSize: 28, fontWeight: '800', color: '#17324D' },
-  mcqMarathi: { fontSize: 13, color: '#7A8994', marginTop: 2, fontWeight: '600' },
-
-  digitStepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 },
-  digitStepBadge: { backgroundColor: '#EEF2F6', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12 },
-  digitStepText: { fontSize: 13, fontWeight: '700', color: '#17324D' },
-  canvasContainer: { borderWidth: 2, borderRadius: 20, overflow: 'hidden', backgroundColor: '#F8FAFC', borderStyle: 'dashed' },
-  canvasBtnRow: { flexDirection: 'row', gap: 12, marginTop: 12 },
-  canvasBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    height: 50, borderRadius: 16, borderWidth: 2, borderColor: '#DDE7EE',
+  presetChipActive: {
+    backgroundColor: '#48A995',
+    borderColor: '#48A995',
   },
-  canvasSubmitBtn: { borderWidth: 0 },
-  canvasBtnText: { fontSize: 16, fontWeight: '700' },
-
-  voiceContainer: { alignItems: 'center', paddingTop: 8 },
-  voiceHint: { fontSize: 14, color: '#7A8994', fontWeight: '600', marginBottom: 20, textAlign: 'center' },
-  micWrapper: { position: 'relative', width: 150, height: 150, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  pulseRing: { position: 'absolute', width: 150, height: 150, borderRadius: 75 },
-  micButton: {
-    width: 130, height: 130, borderRadius: 65, alignItems: 'center', justifyContent: 'center',
-    elevation: 10, shadowColor: '#7184E6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 14,
+  presetText: { fontSize: 15, fontWeight: '700', color: '#5C6B76' },
+  presetTextActive: { color: '#FFF' },
+  stepperBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#DDE7EE',
+    overflow: 'hidden',
   },
-  micLabel: { fontSize: 12, fontWeight: '700', color: '#FFF', marginTop: 4 },
-  transcriptBox: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, width: '100%', marginBottom: 16 },
-  transcriptLabel: { fontSize: 12, color: '#7A8994', fontWeight: '700' },
-  transcriptText: { fontSize: 24, fontWeight: '800', color: '#17324D', marginTop: 4 },
-  offlineBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#EEFBF7', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
+  stepperBtn: { width: 36, height: 38, alignItems: 'center', justifyContent: 'center' },
+  stepperNumber: { fontSize: 15, fontWeight: '800', color: '#17324D', paddingHorizontal: 8 },
+  selectorHint: { fontSize: 11, color: '#9AA7B0', marginTop: 8 },
+  sectionHeader: { fontSize: 14, fontWeight: '700', color: '#17324D', marginBottom: 10, marginTop: 4 },
+
+  // Practice
+  practiceContainer: { flex: 1, paddingHorizontal: 18, paddingTop: 10 },
+  practiceTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center' },
+  practiceTitle: { fontSize: 18, fontWeight: '800' },
+  progressBar: { height: 6, backgroundColor: '#E2E8F0', borderRadius: 99, marginTop: 12, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 99 },
+  progressText: { fontSize: 12, color: '#7A8994', fontWeight: '600', marginTop: 6, textAlign: 'center' },
+
+  questionCard: {
+    backgroundColor: '#FFF', borderRadius: 20, padding: 18, marginTop: 12,
+    alignItems: 'center',
+    shadowColor: '#17324D', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
-  offlineText: { fontSize: 12, color: '#48A995', fontWeight: '600' },
+  qLabel: { fontSize: 13, color: '#7A8994', fontWeight: '600', textAlign: 'center' },
+  qText: { fontSize: 32, fontWeight: '800', color: '#17324D', marginVertical: 8 },
+  speakBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, paddingHorizontal: 12 },
+  speakText: { fontSize: 13, color: '#8A969E', fontWeight: '600' },
 
-  feedbackCard: { flexDirection: 'row', alignItems: 'center', padding: 18, borderRadius: 20, marginTop: 16 },
-  feedbackCorrect: { backgroundColor: '#48A995' },
-  feedbackWrong: { backgroundColor: '#E95757' },
-  feedbackTitle: { fontSize: 20, fontWeight: '800', color: '#FFF' },
-  feedbackSub: { fontSize: 14, color: '#FFF', opacity: 0.9, marginTop: 2 },
+  interactionArea: { flex: 1, marginTop: 14 },
 
-  summaryContainer: { flex: 1, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },
+  // MCQ
+  mcqGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
+  mcqOption: {
+    width: (SCREEN_WIDTH - 48) / 2, paddingVertical: 20,
+    backgroundColor: '#FFF', borderRadius: 20, alignItems: 'center',
+    borderWidth: 2, borderColor: '#DDE7EE',
+    elevation: 2,
+  },
+  mcqText: { fontSize: 30, fontWeight: '800', color: '#17324D' },
+  mcqMarathi: { fontSize: 14, color: '#7A8994', fontWeight: '600', marginTop: 4 },
+
+  // Scribble
+  scribbleCard: {
+    height: 380,
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#DDE7EE',
+    shadowColor: '#17324D',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  scribbleWebView: { flex: 1, backgroundColor: '#F8FAFC' },
+
+  // Feedback
+  feedbackContainer: { width: '100%', paddingTop: 4 },
+  feedbackBanner: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12,
+    borderRadius: 18, marginBottom: 10,
+  },
+  bannerCorrect: { backgroundColor: '#48A995' },
+  bannerAccepted: { backgroundColor: '#0288D1' },
+  bannerWrong: { backgroundColor: '#E95757' },
+  bannerTitle: { fontSize: 18, fontWeight: '800', color: '#FFF' },
+  bannerSubtitle: { fontSize: 12, color: '#FFF', opacity: 0.95, marginTop: 2 },
+
+  feedbackDetailCard: {
+    backgroundColor: '#FFF', borderRadius: 20, padding: 16,
+    shadowColor: '#17324D', shadowOpacity: 0.06, shadowRadius: 10, elevation: 3, marginBottom: 14,
+  },
+  feedbackMetaRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#EEF2F6', marginBottom: 8,
+  },
+  feedbackMetaText: { fontSize: 12, color: '#7A8994', fontWeight: '700' },
+  feedbackResultBadge: { fontSize: 12, fontWeight: '800' },
+  feedbackItem: { marginVertical: 2 },
+  feedbackLabel: { fontSize: 12, color: '#7A8994', fontWeight: '600', marginBottom: 4 },
+  feedbackValueRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  feedbackValueBold: { fontSize: 22, fontWeight: '800' },
+  feedbackWordBadge: { backgroundColor: '#EEFBF7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  feedbackWordBadgeText: { fontSize: 14, fontWeight: '700', color: '#17324D' },
+  feedbackDivider: { height: 1, backgroundColor: '#EEF2F6', marginVertical: 8 },
+  explanationBox: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, marginTop: 8,
+    borderWidth: 1, borderColor: '#E2E8F0',
+  },
+  explanationText: { fontSize: 12, color: '#475569', lineHeight: 18, flex: 1 },
+
+  nextQuestionBtn: {
+    width: '100%', height: 52, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, elevation: 4,
+  },
+  nextQuestionBtnText: { fontSize: 17, fontWeight: '800', color: '#FFF', letterSpacing: 0.3 },
+
+  // Summary
+  summaryContainer: { flex: 1, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
   summaryCard: {
-    width: '100%', backgroundColor: '#FFF', borderRadius: 32, padding: 28, alignItems: 'center',
-    shadowColor: '#17324D', shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 8, marginBottom: 28,
+    width: '100%', backgroundColor: '#FFF', borderRadius: 28, padding: 24, alignItems: 'center',
+    shadowColor: '#17324D', shadowOpacity: 0.1, shadowRadius: 20, elevation: 8,
   },
-  summaryEmoji: { fontSize: 72, marginBottom: 10 },
-  summaryTitle: { fontSize: 30, fontWeight: '800', color: '#17324D' },
-  summaryMessage: { fontSize: 16, color: '#5C6B76', marginTop: 8, marginBottom: 22, textAlign: 'center' },
-  statRow: { flexDirection: 'row', width: '100%', backgroundColor: '#F8FAFC', borderRadius: 18, overflow: 'hidden', marginBottom: 20 },
-  statBox: { flex: 1, alignItems: 'center', paddingVertical: 16 },
+  summaryEmoji: { fontSize: 60, marginBottom: 8 },
+  summaryTitle: { fontSize: 26, fontWeight: '800', color: '#17324D' },
+  summaryMessage: { fontSize: 15, color: '#5C6B76', marginTop: 6, marginBottom: 18, textAlign: 'center' },
+  statRow: { flexDirection: 'row', width: '100%', backgroundColor: '#F8FAFC', borderRadius: 18, overflow: 'hidden', marginBottom: 16 },
+  statBox: { flex: 1, alignItems: 'center', paddingVertical: 14 },
   statBorder: { borderLeftWidth: 1, borderLeftColor: '#DDE7EE' },
-  statNum: { fontSize: 30, fontWeight: '800', color: '#17324D' },
-  statLabel: { fontSize: 12, fontWeight: '700', color: '#8A969E', marginTop: 3 },
-  scoreBar: { width: '100%', height: 8, backgroundColor: '#EEF2F6', borderRadius: 99, overflow: 'hidden', marginBottom: 8 },
+  statNum: { fontSize: 26, fontWeight: '800', color: '#17324D' },
+  statLabel: { fontSize: 11, fontWeight: '700', color: '#8A969E', marginTop: 2 },
+  scoreBar: { width: '100%', height: 8, backgroundColor: '#EEF2F6', borderRadius: 99, overflow: 'hidden', marginBottom: 16 },
   scoreBarFill: { height: '100%', backgroundColor: '#48A995', borderRadius: 99 },
-  scorePct: { fontSize: 14, fontWeight: '700', color: '#7A8994' },
   restartBtn: {
-    width: '100%', height: 64, borderRadius: 20, backgroundColor: '#F6A64A',
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#F6A64A', shadowOpacity: 0.4, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 6,
+    width: '100%', height: 56, borderRadius: 18, backgroundColor: '#F6A64A',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginBottom: 10,
   },
-  restartText: { fontSize: 20, fontWeight: '800', color: '#FFF' },
+  restartText: { fontSize: 18, fontWeight: '800', color: '#FFF' },
   homeBtn: {
-    height: 64, borderRadius: 20, backgroundColor: '#EEF2F6',
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20,
+    height: 50, borderRadius: 18, backgroundColor: '#EEF2F6',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    width: '100%',
   },
-  homeBtnText: { fontSize: 18, fontWeight: '800', color: '#17324D' },
-});
+  homeBtnText: { fontSize: 16, fontWeight: '800', color: '#17324D' },
 
+  // Badges
+  versionBadge: {
+    backgroundColor: '#7184E6', paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 8, marginLeft: 8,
+  },
+  versionBadgeText: { color: '#FFF', fontSize: 12, fontWeight: '800' },
+  versionBadgeSmall: {
+    backgroundColor: '#EEF2F6', paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: 8, borderWidth: 1, borderColor: '#DDE7EE',
+  },
+  versionBadgeTextSmall: { color: '#17324D', fontSize: 11, fontWeight: '700' },
+});
