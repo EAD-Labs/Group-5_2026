@@ -680,40 +680,81 @@ function ScribblePanel({
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === "prediction") {
+        const THRESHOLD = 0.20; // 20% minimum threshold for 2nd probability acceptance
+
         if (!data.isTwoDigit) {
+          // Single digit evaluation
           const target = question.answer;
           const top1 = data.top1;
           const top2 = data.top2;
-          const isCorrect = top1.digit === target;
+          const targetProb = data.probs[target] || 0;
+          const top1Exact = top1.digit === target;
+          const runnerUpAccepted = top2.digit === target && targetProb >= THRESHOLD;
+
+          let matchType: "exact" | "accepted_runner_up" | "mismatch" = "mismatch";
+          let isCorrect = false;
+          let explanation = "";
+
+          if (top1Exact) {
+            isCorrect = true;
+            matchType = "exact";
+            explanation = `अचूक उत्तर: ${toDevanagari(top1.digit)} (${(top1.prob * 100).toFixed(0)}%) - अगदी बरोबर!`;
+          } else if (runnerUpAccepted) {
+            isCorrect = true;
+            matchType = "accepted_runner_up";
+            explanation = `पहिली निवड जरी ${toDevanagari(top1.digit)} (${(top1.prob * 100).toFixed(0)}%) असली, तरी तुमचे अचूक उत्तर ${toDevanagari(target)} हे दुसऱ्या पसंतीमध्ये ${(targetProb * 100).toFixed(0)}% संभाव्यतेसह जुळले आहे - स्वीकारले!`;
+          } else {
+            isCorrect = false;
+            matchType = "mismatch";
+            explanation = `ओळखलेले अंक: १ला = ${toDevanagari(top1.digit)} (${(top1.prob * 100).toFixed(0)}%), २रा = ${toDevanagari(top2.digit)} (${(top2.prob * 100).toFixed(0)}%)`;
+          }
 
           onResult(top1.digit, {
             correct: isCorrect,
-            matchType: isCorrect ? "exact" : "mismatch",
+            matchType,
             top1: top1.digit,
             top2: top2.digit,
-            targetProb: data.probs[target] || 0,
-            explanation: isCorrect
-              ? `अचूक उत्तर: ${toDevanagari(top1.digit)} (${(top1.prob * 100).toFixed(0)}% खात्री)`
-              : `ओळखलेला अंक: ${toDevanagari(top1.digit)} (${(top1.prob * 100).toFixed(0)}%)`,
+            targetProb,
+            explanation,
           });
         } else {
+          // Two-digit evaluation (Tens and Units)
           const targetTens = Math.floor(question.answer / 10);
           const targetUnits = question.answer % 10;
           const tens = data.tens;
           const units = data.units;
 
+          const tensTargetProb = tens.probs[targetTens] || 0;
+          const unitsTargetProb = units.probs[targetUnits] || 0;
+
           const tensExact = tens.top1.digit === targetTens;
+          const tensRunnerUp = tens.top2.digit === targetTens && tensTargetProb >= THRESHOLD;
+          const tensMatch = tensExact || tensRunnerUp;
+
           const unitsExact = units.top1.digit === targetUnits;
+          const unitsRunnerUp = units.top2.digit === targetUnits && unitsTargetProb >= THRESHOLD;
+          const unitsMatch = unitsExact || unitsRunnerUp;
+
           const detectedNumber = tens.top1.digit * 10 + units.top1.digit;
-          const isCorrect = tensExact && unitsExact;
+          const isCorrect = tensMatch && unitsMatch;
+          const matchType: "exact" | "accepted_runner_up" | "mismatch" = isCorrect
+            ? (tensExact && unitsExact ? "exact" : "accepted_runner_up")
+            : "mismatch";
+
+          let explanation = "";
+          if (matchType === "exact") {
+            explanation = `दोन्ही अंक अचूक जुळले: दशक ${toDevanagari(targetTens)}, एकक ${toDevanagari(targetUnits)}`;
+          } else if (matchType === "accepted_runner_up") {
+            explanation = `निकट जुळणी (स्वीकारली): दशक ${tensMatch ? "✓" : "✗"} (${(tensTargetProb * 100).toFixed(0)}%), एकक ${unitsMatch ? "✓" : "✗"} (${(unitsTargetProb * 100).toFixed(0)}%)`;
+          } else {
+            explanation = `अचूकता: दशक ${toDevanagari(tens.top1.digit)} (${(tens.top1.prob * 100).toFixed(0)}%), एकक ${toDevanagari(units.top1.digit)} (${(units.top1.prob * 100).toFixed(0)}%)`;
+          }
 
           onResult(detectedNumber, {
             correct: isCorrect,
-            matchType: isCorrect ? "exact" : "mismatch",
+            matchType,
             detectedNumber,
-            explanation: isCorrect
-              ? `अचूक उत्तर: दशक ${toDevanagari(targetTens)}, एकक ${toDevanagari(targetUnits)}`
-              : `ओळखलेला अंक: दशक ${toDevanagari(tens.top1.digit)}, एकक ${toDevanagari(units.top1.digit)}`,
+            explanation,
           });
         }
       }
