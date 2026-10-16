@@ -680,19 +680,45 @@ function ScribblePanel({
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === "prediction") {
-        const detected = data.isTwoDigit
-          ? (data.tens.top1.digit * 10 + data.units.top1.digit)
-          : data.top1.digit;
-        const isCorrect = detected === question.answer;
-        onResult(detected, {
-          correct: isCorrect,
-          matchType: isCorrect ? "exact" : "mismatch",
-          top1: detected,
-          explanation: `ओळखलेला अंक: ${toDevanagari(detected)}`,
-        });
+        if (!data.isTwoDigit) {
+          const target = question.answer;
+          const top1 = data.top1;
+          const top2 = data.top2;
+          const isCorrect = top1.digit === target;
+
+          onResult(top1.digit, {
+            correct: isCorrect,
+            matchType: isCorrect ? "exact" : "mismatch",
+            top1: top1.digit,
+            top2: top2.digit,
+            targetProb: data.probs[target] || 0,
+            explanation: isCorrect
+              ? `अचूक उत्तर: ${toDevanagari(top1.digit)} (${(top1.prob * 100).toFixed(0)}% खात्री)`
+              : `ओळखलेला अंक: ${toDevanagari(top1.digit)} (${(top1.prob * 100).toFixed(0)}%)`,
+          });
+        } else {
+          const targetTens = Math.floor(question.answer / 10);
+          const targetUnits = question.answer % 10;
+          const tens = data.tens;
+          const units = data.units;
+
+          const tensExact = tens.top1.digit === targetTens;
+          const unitsExact = units.top1.digit === targetUnits;
+          const detectedNumber = tens.top1.digit * 10 + units.top1.digit;
+          const isCorrect = tensExact && unitsExact;
+
+          onResult(detectedNumber, {
+            correct: isCorrect,
+            matchType: isCorrect ? "exact" : "mismatch",
+            detectedNumber,
+            explanation: isCorrect
+              ? `अचूक उत्तर: दशक ${toDevanagari(targetTens)}, एकक ${toDevanagari(targetUnits)}`
+              : `ओळखलेला अंक: दशक ${toDevanagari(tens.top1.digit)}, एकक ${toDevanagari(units.top1.digit)}`,
+          });
+        }
       }
     } catch (err) {
-      console.error("Error handling prediction:", err);
+      console.error("Error handling prediction message:", err);
     }
   };
 
