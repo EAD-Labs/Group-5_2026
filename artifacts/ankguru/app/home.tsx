@@ -556,41 +556,85 @@ function PracticeScreen({
               {/* Feedback Banner */}
               <View style={[
                 styles.feedbackBanner,
-                feedback.correct ? styles.bannerCorrect : styles.bannerWrong
+                feedback.matchType === 'exact' ? styles.bannerCorrect :
+                feedback.matchType === 'accepted_runner_up' ? styles.bannerAccepted :
+                styles.bannerWrong
               ]}>
                 <Feather
-                  name={feedback.correct ? "check-circle" : "x-circle"}
+                  name={feedback.correct ? 'check-circle' : 'x-circle'}
                   size={32}
                   color="#FFF"
                 />
                 <View style={{ marginLeft: 12, flex: 1 }}>
                   <Text style={styles.bannerTitle}>
-                    {feedback.correct ? "Correct! - बरोबर!" : "Wrong! - चूक!"}
+                    {feedback.matchType === 'exact' ? 'Correct! • बरोबर!' :
+                     feedback.matchType === 'accepted_runner_up' ? 'Correct! • बरोबर (स्वीकारले)!' :
+                     'Wrong! • चुकीचे!'}
                   </Text>
                   <Text style={styles.bannerSubtitle}>
-                    {feedback.correct ? "अचूक उत्तर (Exact Match)" : "पुन्हा प्रयत्न करा (Keep practicing)"}
+                    {feedback.matchType === 'exact' ? 'अचूक ओळखले (Exact Match)' :
+                     feedback.matchType === 'accepted_runner_up' ? 'दुसऱ्या क्रमांकावर जुळले (Accepted Match ≥20%)' :
+                     'पुन्हा प्रयत्न करा (Keep practicing)'}
                   </Text>
                 </View>
               </View>
 
+              {/* Accuracy & Breakdown Card */}
               <View style={styles.feedbackDetailCard}>
-                <View style={styles.feedbackItem}>
-                  <Text style={styles.feedbackLabel}>अपेक्षित उत्तर (Expected Answer):</Text>
-                  <Text style={[styles.feedbackValueBold, { color: "#48A995" }]}>
-                    {toDevanagari(question.answer)} ({question.answer})
+                <View style={styles.feedbackMetaRow}>
+                  <Text style={styles.feedbackMetaText}>तपासणी निकाल (Accuracy Inspection):</Text>
+                  <Text style={[
+                    styles.feedbackResultBadge,
+                    { color: feedback.correct ? '#48A995' : '#E95757' }
+                  ]}>
+                    {feedback.matchType === 'exact' ? '✓ EXACT' :
+                     feedback.matchType === 'accepted_runner_up' ? '✓ ACCEPTED' :
+                     '✗ MISMATCH'}
                   </Text>
                 </View>
+
+                {/* Actual Expected Answer */}
+                <View style={styles.feedbackItem}>
+                  <Text style={styles.feedbackLabel}>अपेक्षित उत्तर (Expected Answer):</Text>
+                  <View style={styles.feedbackValueRow}>
+                    <Text style={[styles.feedbackValueBold, { color: '#48A995' }]}>
+                      {toDevanagari(question.answer)} ({question.answer})
+                    </Text>
+                    <View style={styles.feedbackWordBadge}>
+                      <Text style={styles.feedbackWordBadgeText}>{question.answerMarathi}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Detected Input & Probabilities */}
                 <View style={styles.feedbackDivider} />
                 <View style={styles.feedbackItem}>
-                  <Text style={styles.feedbackLabel}>दिलेले उत्तर (Your Answer):</Text>
-                  <Text style={[
-                    styles.feedbackValueBold,
-                    { color: feedback.correct ? "#48A995" : "#E95757" }
-                  ]}>
-                    {feedback.userAnswer !== undefined && feedback.userAnswer !== null
-                      ? `${toDevanagari(feedback.userAnswer)} (${feedback.userAnswer})`
-                      : "काहीही नाही"}
-                  </Text>
+                  <Text style={styles.feedbackLabel}>ओळखलेले उत्तर (Detected Input):</Text>
+                  <View style={styles.feedbackValueRow}>
+                    <Text style={[
+                      styles.feedbackValueBold,
+                      { color: feedback.correct ? '#48A995' : '#E95757' }
+                    ]}>
+                      {feedback.userAnswer !== undefined && feedback.userAnswer !== null
+                        ? `${toDevanagari(feedback.userAnswer)} (${feedback.userAnswer})`
+                        : 'काहीही नाही'}
+                    </Text>
+                    {feedback.userAnswer !== undefined && feedback.userAnswer !== null && (
+                      <View style={[styles.feedbackWordBadge, { backgroundColor: feedback.correct ? '#EEFBF7' : '#FEECEC' }]}>
+                        <Text style={[styles.feedbackWordBadgeText, { color: feedback.correct ? '#48A995' : '#E95757' }]}>
+                          {getMarathiWord(feedback.userAnswer)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Scribble Probability Breakdown Info */}
+                  {feedback.details && feedback.details.explanation && (
+                    <View style={styles.explanationBox}>
+                      <Feather name="info" size={14} color="#17324D" style={{ marginTop: 2, marginRight: 6 }} />
+                      <Text style={styles.explanationText}>{feedback.details.explanation}</Text>
+                    </View>
+                  )}
                 </View>
               </View>
 
@@ -673,13 +717,13 @@ function ScribblePanel({
   const htmlContent = useMemo(() => getScribbleEngineHtml(isTwoDigit), [isTwoDigit]);
 
   useEffect(() => {
-    webRef.current?.injectJavaScript("if(window.resetBoard) window.resetBoard(); true;");
+    webRef.current?.injectJavaScript('if(window.resetBoard) window.resetBoard(); true;');
   }, [question]);
 
   const handleMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === "prediction") {
+      if (data.type === 'prediction') {
         const THRESHOLD = 0.20; // 20% minimum threshold for 2nd probability acceptance
 
         if (!data.isTwoDigit) {
@@ -691,22 +735,22 @@ function ScribblePanel({
           const top1Exact = top1.digit === target;
           const runnerUpAccepted = top2.digit === target && targetProb >= THRESHOLD;
 
-          let matchType: "exact" | "accepted_runner_up" | "mismatch" = "mismatch";
+          let matchType: 'exact' | 'accepted_runner_up' | 'mismatch' = 'mismatch';
           let isCorrect = false;
-          let explanation = "";
+          let explanation = '';
 
           if (top1Exact) {
             isCorrect = true;
-            matchType = "exact";
-            explanation = `अचूक उत्तर: ${toDevanagari(top1.digit)} (${(top1.prob * 100).toFixed(0)}%) - अगदी बरोबर!`;
+            matchType = 'exact';
+            explanation = `पहिला अंदाज: ${toDevanagari(top1.digit)} (${(top1.prob * 100).toFixed(0)}%) — अचूक जुळले!`;
           } else if (runnerUpAccepted) {
             isCorrect = true;
-            matchType = "accepted_runner_up";
-            explanation = `पहिली निवड जरी ${toDevanagari(top1.digit)} (${(top1.prob * 100).toFixed(0)}%) असली, तरी तुमचे अचूक उत्तर ${toDevanagari(target)} हे दुसऱ्या पसंतीमध्ये ${(targetProb * 100).toFixed(0)}% संभाव्यतेसह जुळले आहे - स्वीकारले!`;
+            matchType = 'accepted_runner_up';
+            explanation = `मॉडेलचा मुख्य अंदाज ${toDevanagari(top1.digit)} (${(top1.prob * 100).toFixed(0)}%) आला, पण तुमचे अचूक उत्तर ${toDevanagari(target)} हे दुसऱ्या क्रमांकावर ${(targetProb * 100).toFixed(0)}% संभाव्यतेसह ओळखले गेले — स्वीकारले!`;
           } else {
             isCorrect = false;
-            matchType = "mismatch";
-            explanation = `ओळखलेले अंक: १ला = ${toDevanagari(top1.digit)} (${(top1.prob * 100).toFixed(0)}%), २रा = ${toDevanagari(top2.digit)} (${(top2.prob * 100).toFixed(0)}%)`;
+            matchType = 'mismatch';
+            explanation = `मॉडेल अंदाज: १ला = ${toDevanagari(top1.digit)} (${(top1.prob * 100).toFixed(0)}%), २रा = ${toDevanagari(top2.digit)} (${(top2.prob * 100).toFixed(0)}%)`;
           }
 
           onResult(top1.digit, {
@@ -737,17 +781,17 @@ function ScribblePanel({
 
           const detectedNumber = tens.top1.digit * 10 + units.top1.digit;
           const isCorrect = tensMatch && unitsMatch;
-          const matchType: "exact" | "accepted_runner_up" | "mismatch" = isCorrect
-            ? (tensExact && unitsExact ? "exact" : "accepted_runner_up")
-            : "mismatch";
+          const matchType: 'exact' | 'accepted_runner_up' | 'mismatch' = isCorrect
+            ? (tensExact && unitsExact ? 'exact' : 'accepted_runner_up')
+            : 'mismatch';
 
-          let explanation = "";
-          if (matchType === "exact") {
-            explanation = `दोन्ही अंक अचूक जुळले: दशक ${toDevanagari(targetTens)}, एकक ${toDevanagari(targetUnits)}`;
-          } else if (matchType === "accepted_runner_up") {
-            explanation = `निकट जुळणी (स्वीकारली): दशक ${tensMatch ? "✓" : "✗"} (${(tensTargetProb * 100).toFixed(0)}%), एकक ${unitsMatch ? "✓" : "✗"} (${(unitsTargetProb * 100).toFixed(0)}%)`;
+          let explanation = '';
+          if (matchType === 'exact') {
+            explanation = `दोन्ही अंक अचूक ओळखले: दशक ${toDevanagari(targetTens)}, एकक ${toDevanagari(targetUnits)}`;
+          } else if (matchType === 'accepted_runner_up') {
+            explanation = `अंक जुळले (स्वीकारले): दशक ${tensMatch ? '✓' : '✗'} (${(tensTargetProb * 100).toFixed(0)}%), एकक ${unitsMatch ? '✓' : '✗'} (${(unitsTargetProb * 100).toFixed(0)}%)`;
           } else {
-            explanation = `अचूकता: दशक ${toDevanagari(tens.top1.digit)} (${(tens.top1.prob * 100).toFixed(0)}%), एकक ${toDevanagari(units.top1.digit)} (${(units.top1.prob * 100).toFixed(0)}%)`;
+            explanation = `ओळखलेले: दशक ${toDevanagari(tens.top1.digit)} (${(tens.top1.prob * 100).toFixed(0)}%), एकक ${toDevanagari(units.top1.digit)} (${(units.top1.prob * 100).toFixed(0)}%)`;
           }
 
           onResult(detectedNumber, {
@@ -759,7 +803,7 @@ function ScribblePanel({
         }
       }
     } catch (err) {
-      console.error("Error handling prediction message:", err);
+      console.error('Error handling prediction message:', err);
     }
   };
 
@@ -767,21 +811,22 @@ function ScribblePanel({
     <View style={styles.scribbleCard}>
       <WebView
         ref={webRef}
-        originWhitelist={["*"]}
-        source={{ html: htmlContent, baseUrl: "https://localhost" }}
+        originWhitelist={['*']}
+        source={{ html: htmlContent, baseUrl: 'https://localhost' }}
         onMessage={handleMessage}
         style={styles.scribbleWebView}
         javaScriptEnabled
         domStorageEnabled
         scrollEnabled={false}
+        overScrollMode="never"
       />
     </View>
   );
 }
 
-// ───
+// ═════════════════════════════════════════════════════════════════════
 // SUMMARY SCREEN
-// ───
+// ═════════════════════════════════════════════════════════════════════
 function SummaryScreen({
   score,
   total,
