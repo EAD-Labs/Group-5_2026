@@ -30,6 +30,26 @@ const MARATHI_NUMBERS = [
   "एक्याण्णव", "ब्याण्णव", "त्र्याण्णव", "चौऱ्याण्णव", "पंचाण्णव", "शहाण्णव", "सत्याण्णव", "अठ्ठ्याण्णव", "नव्व्याण्णव",
 ];
 
+
+const MARATHI_PHONETICS: string[] = [
+  "shunya", "ek", "don", "teen", "chaar", "paach", "saha", "saat", "aath", "nau",
+  "daha", "akara", "baara", "tera", "chauda", "pandhara", "sola", "satra", "athara", "ekonis", "vis",
+  "ekvis", "baavis", "tevis", "chovis", "panchvis", "savvis", "sattavis", "atthavis", "ekontis", "tis",
+  "ektis", "battis", "tehtis", "chautis", "pastis", "chhattis", "sadtis", "adtis", "ekonchalis", "chalis",
+  "ekechalis", "bechalis", "trechalis", "chavvechalis", "panchechalis", "shehechalis", "sattechalis", "aththechalis", "ekonpannas", "pannas",
+  "ekaavanna", "baavan", "trepann", "chopann", "panchaavanna", "chhappann", "sattaavann", "atthaavann", "ekonsaath", "saath",
+  "eksasht", "baasasht", "tresasht", "chausasht", "paasasht", "sahaasasht", "sadusasht", "adusasht", "ekonsattar", "sattar",
+  "ekaahattar", "bahaattar", "tryaahattar", "chauryaahattar", "panchyaahattar", "shahaattar", "sattyaahattar", "aththyaahattar", "ekonainshi", "ainshi",
+  "ekaainshi", "byaainshi", "tryaainshi", "chauryaainshi", "panchyaainshi", "shahaainshi", "sattyaainshi", "aththyaainshi", "ekonnavvad", "navvad",
+  "ekyaanNav", "byaanNav", "tryaanNav", "chauryaanNav", "panchaanNav", "shahaanNav", "sattyaanNav", "aththyaanNav", "navvyaanNav", "shambhar"
+];
+
+function getMarathiPhonetic(num: number): string {
+  if (num >= 0 && num < MARATHI_PHONETICS.length) return MARATHI_PHONETICS[num];
+  return String(num);
+}
+
+const MARATHI_OPS_PHONETIC: Record<string, string> = { "+": "adhik", "-": "vaja", "×": "gunile" };
 function getMarathiWord(num: number): string {
   if (num === 0) return MARATHI_DIGITS[0];
   if (num >= 1 && num <= 99) return MARATHI_NUMBERS[num - 1];
@@ -40,6 +60,7 @@ function getMarathiWord(num: number): string {
 export interface Question {
   display: string;
   marathi: string;
+  phonetic: string;
   answer: number;
   answerMarathi: string;
 }
@@ -100,9 +121,14 @@ function generateQuestion(level = 1): Question {
   const marathiB = b === 0 ? MARATHI_DIGITS[0] : (MARATHI_NUMBERS[b - 1] || String(b));
   const marathiOp = MARATHI_OPS[op] || op;
 
+  const phoneticA = getMarathiPhonetic(a);
+  const phoneticB = getMarathiPhonetic(b);
+  const phoneticOp = MARATHI_OPS_PHONETIC[op] || op;
+
   return {
     display: `${a} ${op} ${b} = ?`,
     marathi: `${marathiA} ${marathiOp} ${marathiB}`,
+    phonetic: `${phoneticA} ${phoneticOp} ${phoneticB}`,
     answer,
     answerMarathi: getMarathiWord(answer),
   };
@@ -451,45 +477,69 @@ function PracticeScreen({
     speakQuestion();
   }, [question]);
 
-  const speakQuestion = async () => {
+    const speakQuestion = async () => {
     if (isSpeaking) return;
     setIsSpeaking(true);
-    try {
-      const voices = await Speech.getAvailableVoicesAsync();
-      const hasMarathi = voices.some(v => v.language && v.language.startsWith('mr'));
-      if (hasMarathi) {
-        Speech.speak(question.marathi, {
-          language: 'mr-IN',
-          rate: 0.85,
-          onDone: () => setIsSpeaking(false),
-          onStopped: () => setIsSpeaking(false),
-          onError: () => {
-            Speech.speak(question.display.replace('?', 'what'), {
-              language: 'en-IN',
-              rate: 0.85,
-              onDone: () => setIsSpeaking(false),
-              onStopped: () => setIsSpeaking(false),
-              onError: () => setIsSpeaking(false),
-            });
-          },
-        });
-      } else {
-        Speech.speak(question.display.replace('?', 'what'), {
-          language: 'en-IN',
-          rate: 0.85,
-          onDone: () => setIsSpeaking(false),
-          onStopped: () => setIsSpeaking(false),
-          onError: () => setIsSpeaking(false),
-        });
-      }
-    } catch (e) {
-      Speech.speak(question.display.replace('?', 'what'), {
-        language: 'en-IN',
+
+    const speakPhonetic = () => {
+      Speech.speak(question.phonetic, {
+        language: "en-IN",
         rate: 0.85,
         onDone: () => setIsSpeaking(false),
         onStopped: () => setIsSpeaking(false),
         onError: () => setIsSpeaking(false),
       });
+    };
+
+    const speakHindi = () => {
+      Speech.speak(question.marathi, {
+        language: "hi-IN",
+        rate: 0.85,
+        onDone: () => setIsSpeaking(false),
+        onStopped: () => setIsSpeaking(false),
+        onError: () => speakPhonetic(),
+      });
+    };
+
+    try {
+      const voices = await Speech.getAvailableVoicesAsync().catch(() => []);
+      const marathiVoice = voices.find(v => v.language && v.language.toLowerCase().startsWith("mr"));
+      const hindiVoice = voices.find(v => v.language && v.language.toLowerCase().startsWith("hi"));
+
+      if (marathiVoice) {
+        Speech.speak(question.marathi, {
+          language: marathiVoice.language || "mr-IN",
+          voice: marathiVoice.identifier,
+          rate: 0.85,
+          onDone: () => setIsSpeaking(false),
+          onStopped: () => setIsSpeaking(false),
+          onError: () => speakHindi(),
+        });
+        return;
+      }
+
+      if (hindiVoice) {
+        Speech.speak(question.marathi, {
+          language: hindiVoice.language || "hi-IN",
+          voice: hindiVoice.identifier,
+          rate: 0.85,
+          onDone: () => setIsSpeaking(false),
+          onStopped: () => setIsSpeaking(false),
+          onError: () => speakPhonetic(),
+        });
+        return;
+      }
+
+      // If no voices returned in query (e.g. Android 14 restrictions), attempt mr-IN directly
+      Speech.speak(question.marathi, {
+        language: "mr-IN",
+        rate: 0.85,
+        onDone: () => setIsSpeaking(false),
+        onStopped: () => setIsSpeaking(false),
+        onError: () => speakHindi(),
+      });
+    } catch (e) {
+      speakHindi();
     }
   };
 
