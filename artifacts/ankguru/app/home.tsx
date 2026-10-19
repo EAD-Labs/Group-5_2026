@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, Pressable, Animated,
-  StatusBar, Dimensions, ScrollView,
+  StatusBar, Dimensions, ScrollView, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -189,6 +189,25 @@ export default function AnkGuruHome() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [qIndex, setQIndex] = useState<number>(0);
   const [score, setScore] = useState<number>(0);
+
+  useEffect(() => {
+    const onBackPress = () => {
+      if (screen === 'practice') {
+        Speech.stop().catch(() => {});
+        setScreen('level');
+        return true;
+      }
+      if (screen === 'level' || screen === 'summary') {
+        Speech.stop().catch(() => {});
+        setScreen('home');
+        return true;
+      }
+      return false; // Exit app on home screen
+    };
+
+    const backSub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backSub.remove();
+  }, [screen]);
 
   const selectMode = (selectedMode: string) => {
     setMode(selectedMode);
