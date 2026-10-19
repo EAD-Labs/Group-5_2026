@@ -69,6 +69,7 @@ export interface FeedbackState {
   correct: boolean;
   userAnswer: number;
   matchType: 'exact' | 'accepted_runner_up' | 'mismatch';
+  question: Question;
   details?: any;
 }
 
@@ -238,13 +239,14 @@ export default function AnkGuruHome() {
 
   return (
     <PracticeScreen
+      key={`practice-${mode}-${level}-${qIndex}`}
       mode={mode}
       level={level}
       question={q}
       qNumber={qIndex + 1}
       total={questions.length}
       onAnswer={handleAnswer}
-      onBack={() => setScreen('level')}
+      onBack={() => { Speech.stop().catch(() => {}); setScreen('level'); }}
     />
   );
 }
@@ -467,27 +469,61 @@ function PracticeScreen({
 }) {
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const speechTimerRef = useRef<any>(null);
+  const playDelayRef = useRef<any>(null);
   const modeInfo = MODE_DATA.find(m => m.key === mode) || MODE_DATA[0];
 
-  useEffect(() => {
-    setFeedback(null);
-  }, [question]);
+  const stopSpeaking = async () => {
+    if (playDelayRef.current) {
+      clearTimeout(playDelayRef.current);
+      playDelayRef.current = null;
+    }
+    if (speechTimerRef.current) {
+      clearTimeout(speechTimerRef.current);
+      speechTimerRef.current = null;
+    }
+    try {
+      await Speech.stop();
+    } catch (_) {}
+    setIsSpeaking(false);
+  };
 
-  useEffect(() => {
-    speakQuestion();
-  }, [question]);
+  const speakQuestion = async () => {
+    if (playDelayRef.current) {
+      clearTimeout(playDelayRef.current);
+      playDelayRef.current = null;
+    }
+    if (speechTimerRef.current) {
+      clearTimeout(speechTimerRef.current);
+      speechTimerRef.current = null;
+    }
 
-    const speakQuestion = async () => {
-    if (isSpeaking) return;
+    try {
+      await Speech.stop();
+    } catch (_) {}
+
     setIsSpeaking(true);
+
+    // Watchdog timer: automatically reset isSpeaking after 4.5 seconds in case TTS callback drops
+    speechTimerRef.current = setTimeout(() => {
+      setIsSpeaking(false);
+    }, 4500);
+
+    const onFinish = () => {
+      if (speechTimerRef.current) {
+        clearTimeout(speechTimerRef.current);
+        speechTimerRef.current = null;
+      }
+      setIsSpeaking(false);
+    };
 
     const speakPhonetic = () => {
       Speech.speak(question.phonetic, {
         language: "en-IN",
         rate: 0.85,
-        onDone: () => setIsSpeaking(false),
-        onStopped: () => setIsSpeaking(false),
-        onError: () => setIsSpeaking(false),
+        onDone: onFinish,
+        onStopped: onFinish,
+        onError: onFinish,
       });
     };
 
@@ -495,8 +531,8 @@ function PracticeScreen({
       Speech.speak(question.marathi, {
         language: "hi-IN",
         rate: 0.85,
-        onDone: () => setIsSpeaking(false),
-        onStopped: () => setIsSpeaking(false),
+        onDone: onFinish,
+        onStopped: onFinish,
         onError: () => speakPhonetic(),
       });
     };
@@ -511,8 +547,8 @@ function PracticeScreen({
           language: marathiVoice.language || "mr-IN",
           voice: marathiVoice.identifier,
           rate: 0.85,
-          onDone: () => setIsSpeaking(false),
-          onStopped: () => setIsSpeaking(false),
+          onDone: onFinish,
+          onStopped: onFinish,
           onError: () => speakHindi(),
         });
         return;
@@ -523,19 +559,18 @@ function PracticeScreen({
           language: hindiVoice.language || "hi-IN",
           voice: hindiVoice.identifier,
           rate: 0.85,
-          onDone: () => setIsSpeaking(false),
-          onStopped: () => setIsSpeaking(false),
+          onDone: onFinish,
+          onStopped: onFinish,
           onError: () => speakPhonetic(),
         });
         return;
       }
 
-      // If no voices returned in query (e.g. Android 14 restrictions), attempt mr-IN directly
       Speech.speak(question.marathi, {
         language: "mr-IN",
         rate: 0.85,
-        onDone: () => setIsSpeaking(false),
-        onStopped: () => setIsSpeaking(false),
+        onDone: onFinish,
+        onStopped: onFinish,
         onError: () => speakHindi(),
       });
     } catch (e) {
@@ -543,16 +578,51 @@ function PracticeScreen({
     }
   };
 
+  // Auto-play question audio with a 320ms delay so screen transition & audio subsystem are 100% ready
+  useEffect(() => {
+    setFeedback(null);
+    stopSpeaking();
+
+    playDelayRef.current = setTimeout(() => {
+      speakQuestion();
+    }, 320);
+
+    return () => {
+      if (playDelayRef.current) clearTimeout(playDelayRef.current);
+      if (speechTimerRef.current) clearTimeout(speechTimerRef.current);
+      Speech.stop().catch(() => {});
+    };
+  }, [question]);
+
   const submitAnswer = (userAnswer: number, details: any = null) => {
     if (feedback) return;
+    stopSpeaking();
 
-    if (mode === 'mcq') {
+    if (mode === "mcq") {
       const correct = userAnswer === question.answer;
       setFeedback({
         correct,
         userAnswer,
-        matchType: correct ? 'exact' : 'mismatch',
+        matchType: correct ? "exact" : "mismatch",
+        question, // Locked snapshot!
         details: null,
+      });
+      return;
+    }
+
+    if (mode === "speak") {
+      const isCorrect = userAnswer === 1;
+      setFeedback({
+        correct: isCorrect,
+        userAnswer: question.answer,
+        matchType: isCorrect ? "exact" : "mismatch",
+        question, // Locked snapshot!
+        details: {
+          isOral: true,
+          explanation: isCorrect
+            ? `शिक्षकांनी तोंडी उत्तर अचूक प्रमाणित केले: ${toDevanagari(question.answer)} (${question.answerMarathi})`
+            : `अचूक उत्तर: ${toDevanagari(question.answer)} (${question.answerMarathi}) — पुन्हा तोंडी सराव करा!`,
+        },
       });
       return;
     }
@@ -561,7 +631,8 @@ function PracticeScreen({
     setFeedback({
       correct: details ? details.correct : (userAnswer === question.answer),
       userAnswer,
-      matchType: details ? details.matchType : (userAnswer === question.answer ? 'exact' : 'mismatch'),
+      matchType: details ? details.matchType : (userAnswer === question.answer ? "exact" : "mismatch"),
+      question, // Locked snapshot!
       details,
     });
   };
@@ -573,7 +644,7 @@ function PracticeScreen({
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
       <View style={styles.practiceContainer}>
         <View style={styles.practiceTopBar}>
-          <Pressable onPress={onBack} style={styles.backBtn}>
+          <Pressable onPress={() => { stopSpeaking(); onBack(); }} style={styles.backBtn}>
             <Feather name="arrow-left" size={22} color="#17324D" />
           </Pressable>
           <Text style={[styles.practiceTitle, { color: modeInfo.color }]}>{modeInfo.title} • L{level}</Text>
@@ -589,13 +660,17 @@ function PracticeScreen({
 
         <View style={styles.questionCard}>
           <Text style={styles.qLabel}>
-            {mode === 'scribble' ? 'पाटीवर देवनागरी अंक लिहा (Draw the answer in Devanagari):' : 'योग्य पर्याय निवडा (Choose the right answer):'}
+            {mode === "scribble"
+              ? "पाटीवर देवनागरी अंक लिहा (Draw the answer in Devanagari):"
+              : mode === "speak"
+              ? "आधी उत्तर तोंडी बोला, मग ऐकून तपासा (Speak aloud, then verify):"
+              : "योग्य पर्याय निवडा (Choose the right answer):"}
           </Text>
           <Text style={styles.qText}>{toDevanagari(question.display)}</Text>
-          <Pressable onPress={speakQuestion} style={styles.speakBtn}>
-            <Feather name={isSpeaking ? 'volume-2' : 'play-circle'} size={24} color={isSpeaking ? modeInfo.color : '#8A969E'} />
-            <Text style={[styles.speakText, isSpeaking && { color: modeInfo.color }]}>
-              {isSpeaking ? 'बोलत आहे...' : 'ऐकण्यासाठी दाबा (Tap to hear)'}
+          <Pressable onPress={isSpeaking ? stopSpeaking : speakQuestion} style={styles.speakBtn}>
+            <Feather name={isSpeaking ? "square" : "play-circle"} size={22} color={isSpeaking ? modeInfo.color : "#8A969E"} />
+            <Text style={[styles.speakText, isSpeaking && { color: modeInfo.color, fontWeight: "700" }]}>
+              {isSpeaking ? "थांबवा (Tap to stop)" : "ऐकण्यासाठी दाबा (Tap to hear)"}
             </Text>
           </Pressable>
         </View>
@@ -648,10 +723,10 @@ function PracticeScreen({
                   <Text style={styles.feedbackLabel}>अपेक्षित उत्तर (Expected Answer):</Text>
                   <View style={styles.feedbackValueRow}>
                     <Text style={[styles.feedbackValueBold, { color: '#48A995' }]}>
-                      {toDevanagari(question.answer)} ({question.answer})
+                      {toDevanagari(feedback.question.answer)} ({feedback.question.answer})
                     </Text>
                     <View style={styles.feedbackWordBadge}>
-                      <Text style={styles.feedbackWordBadgeText}>{question.answerMarathi}</Text>
+                      <Text style={styles.feedbackWordBadgeText}>{feedback.question.answerMarathi}</Text>
                     </View>
                   </View>
                 </View>
@@ -690,7 +765,12 @@ function PracticeScreen({
 
               {/* Next Question / Proceed Button (Waits for tap, never auto-advances) */}
               <Pressable
-                onPress={() => onAnswer(feedback.correct)}
+                onPress={() => {
+                  const isCorrect = feedback.correct;
+                  setFeedback(null);
+                  stopSpeaking();
+                  onAnswer(isCorrect);
+                }}
                 style={({ pressed }) => [
                   styles.nextQuestionBtn,
                   { backgroundColor: modeInfo.color },
@@ -1263,7 +1343,7 @@ const styles = StyleSheet.create({
 
   // Scribble
   scribbleCard: {
-    height: 380,
+    height: 395,
     backgroundColor: '#FFF',
     borderRadius: 20,
     overflow: 'hidden',

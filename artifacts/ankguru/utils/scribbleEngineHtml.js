@@ -20,18 +20,22 @@ html, body {
   justify-content: center;
   height: 100vh;
   padding: 4px 6px;
+  box-sizing: border-box;
 }
 .boards-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
   width: 100%;
+  box-sizing: border-box;
 }
 .board-box {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+  max-width: 250px;
+  box-sizing: border-box;
 }
 .board-label {
   font-size: 13px;
@@ -40,18 +44,29 @@ html, body {
   margin-bottom: 4px;
 }
 .slate-frame {
+  width: 100%;
   background: linear-gradient(160deg, #3B2A1C, #24190F);
   border-radius: 14px;
-  padding: 8px;
+  padding: 6px;
+  box-sizing: border-box;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25), 0 8px 18px -8px rgba(0,0,0,0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 canvas {
   display: block;
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 1 / 1;
+  max-width: 238px;
+  max-height: 238px;
   background: #1E2B26;
   border-radius: 8px;
   touch-action: none;
   cursor: crosshair;
   box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+  box-sizing: border-box;
 }
 .controls {
   display: flex;
@@ -59,7 +74,7 @@ canvas {
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  max-width: 380px;
+  max-width: 280px;
   margin-top: 10px;
 }
 .brush-ctrl {
@@ -448,39 +463,58 @@ html, body {
   align-items: center;
   justify-content: center;
   height: 100vh;
-  padding: 4px 6px;
+  padding: 4px 4px;
+  box-sizing: border-box;
 }
 .boards-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0 2px;
 }
 .board-box {
+  flex: 1;
+  max-width: 148px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  box-sizing: border-box;
 }
 .board-label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #5C6B76;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
+  white-space: nowrap;
 }
 .slate-frame {
+  width: 100%;
   background: linear-gradient(160deg, #3B2A1C, #24190F);
-  border-radius: 14px;
-  padding: 8px;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25), 0 8px 18px -8px rgba(0,0,0,0.45);
+  border-radius: 12px;
+  padding: 5px;
+  box-sizing: border-box;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25), 0 6px 14px -6px rgba(0,0,0,0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 canvas {
   display: block;
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 1 / 1;
+  max-width: 138px;
+  max-height: 138px;
   background: #1E2B26;
   border-radius: 8px;
   touch-action: none;
   cursor: crosshair;
   box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+  box-sizing: border-box;
 }
 .controls {
   display: flex;
@@ -488,8 +522,10 @@ canvas {
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  max-width: 380px;
-  margin-top: 10px;
+  max-width: 310px;
+  margin-top: 8px;
+  padding: 0 4px;
+  box-sizing: border-box;
 }
 .brush-ctrl {
   display: flex;
@@ -500,15 +536,15 @@ canvas {
   font-weight: 600;
 }
 input[type=range] {
-  width: 75px;
+  width: 70px;
   accent-color: #48A995;
 }
 button {
   font-family: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   border-radius: 10px;
-  padding: 8px 14px;
+  padding: 8px 12px;
   border: none;
   cursor: pointer;
   transition: transform .08s ease, background .15s ease;
@@ -523,7 +559,7 @@ button:active { transform: scale(0.96); }
   background: #48A995;
   color: #FFF;
   box-shadow: 0 4px 10px rgba(72, 169, 149, 0.35);
-  padding: 9px 18px;
+  padding: 8px 16px;
 }
 </style>
 </head>
