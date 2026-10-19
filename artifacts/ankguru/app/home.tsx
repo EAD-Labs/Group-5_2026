@@ -272,7 +272,7 @@ function HomeScreen({ onStart }: { onStart: (mode: string) => void }) {
             </View>
             <Text style={styles.brandText}>AnkGuru</Text>
             <View style={styles.versionBadge}>
-              <Text style={styles.versionBadgeText}>v3.0</Text>
+              <Text style={styles.versionBadgeText}>v3.1</Text>
             </View>
           </View>
           <Text style={styles.homeSubtitle}>गणित शिका • Learn Math • 100% Offline</Text>
@@ -309,7 +309,7 @@ function HomeScreen({ onStart }: { onStart: (mode: string) => void }) {
 
         <View style={styles.offlinePill}>
           <Feather name="check-circle" size={14} color="#48A995" />
-          <Text style={styles.offlinePillText}>High-Accuracy CNN • 100% Offline • No Internet Needed</Text>
+          <Text style={styles.offlinePillText}>3 Interactive Modes • 100% Offline • No Internet Needed</Text>
         </View>
       </View>
     </SafeAreaView>
@@ -358,7 +358,7 @@ function LevelScreen({
               <Text style={styles.homeSubtitle}>कठिणता आणि प्रश्न संख्या निवडा</Text>
             </View>
             <View style={styles.versionBadgeSmall}>
-              <Text style={styles.versionBadgeTextSmall}>v3.0</Text>
+              <Text style={styles.versionBadgeTextSmall}>v3.1</Text>
             </View>
           </View>
 
@@ -578,7 +578,7 @@ function PracticeScreen({
           </Pressable>
           <Text style={[styles.practiceTitle, { color: modeInfo.color }]}>{modeInfo.title} • L{level}</Text>
           <View style={styles.versionBadgeSmall}>
-            <Text style={styles.versionBadgeTextSmall}>v3.0</Text>
+            <Text style={styles.versionBadgeTextSmall}>v3.1</Text>
           </View>
         </View>
 
@@ -875,6 +875,191 @@ function ScribblePanel({
 }
 
 // ═════════════════════════════════════════════════════════════════════
+// SPEAK & VERIFY PANEL (Oral Pronunciation & Teacher Verification)
+// ═════════════════════════════════════════════════════════════════════
+function SpeakVerifyPanel({
+  question,
+  onVerify,
+  color,
+}: {
+  question: Question;
+  onVerify: (isCorrect: boolean) => void;
+  color: string;
+}) {
+  const [isSpeakingAnswer, setIsSpeakingAnswer] = useState(false);
+  const [hasPlayedAnswer, setHasPlayedAnswer] = useState(false);
+
+  useEffect(() => {
+    setIsSpeakingAnswer(false);
+    setHasPlayedAnswer(false);
+  }, [question]);
+
+  const speakAnswer = async () => {
+    if (isSpeakingAnswer) return;
+    setIsSpeakingAnswer(true);
+    setHasPlayedAnswer(true);
+
+    const phoneticWord = getMarathiPhonetic(question.answer);
+
+    const speakPhonetic = () => {
+      Speech.speak(phoneticWord, {
+        language: "en-IN",
+        rate: 0.85,
+        onDone: () => setIsSpeakingAnswer(false),
+        onStopped: () => setIsSpeakingAnswer(false),
+        onError: () => setIsSpeakingAnswer(false),
+      });
+    };
+
+    const speakHindi = () => {
+      Speech.speak(question.answerMarathi, {
+        language: "hi-IN",
+        rate: 0.85,
+        onDone: () => setIsSpeakingAnswer(false),
+        onStopped: () => setIsSpeakingAnswer(false),
+        onError: () => speakPhonetic(),
+      });
+    };
+
+    try {
+      const voices = await Speech.getAvailableVoicesAsync().catch(() => []);
+      const marathiVoice = voices.find(v => v.language && v.language.toLowerCase().startsWith("mr"));
+      const hindiVoice = voices.find(v => v.language && v.language.toLowerCase().startsWith("hi"));
+
+      if (marathiVoice) {
+        Speech.speak(question.answerMarathi, {
+          language: marathiVoice.language || "mr-IN",
+          voice: marathiVoice.identifier,
+          rate: 0.85,
+          onDone: () => setIsSpeakingAnswer(false),
+          onStopped: () => setIsSpeakingAnswer(false),
+          onError: () => speakHindi(),
+        });
+        return;
+      }
+
+      if (hindiVoice) {
+        Speech.speak(question.answerMarathi, {
+          language: hindiVoice.language || "hi-IN",
+          voice: hindiVoice.identifier,
+          rate: 0.85,
+          onDone: () => setIsSpeakingAnswer(false),
+          onStopped: () => setIsSpeakingAnswer(false),
+          onError: () => speakPhonetic(),
+        });
+        return;
+      }
+
+      Speech.speak(question.answerMarathi, {
+        language: "mr-IN",
+        rate: 0.85,
+        onDone: () => setIsSpeakingAnswer(false),
+        onStopped: () => setIsSpeakingAnswer(false),
+        onError: () => speakHindi(),
+      });
+    } catch (e) {
+      speakHindi();
+    }
+  };
+
+  return (
+    <View style={styles.speakVerifyCard}>
+      {/* Step 1: Student Oral Instruction Card */}
+      <View style={styles.speakStepBox}>
+        <View style={styles.speakStepHeader}>
+          <View style={[styles.speakStepBadge, { backgroundColor: color }]}>
+            <Text style={styles.speakStepBadgeText}>१</Text>
+          </View>
+          <Text style={styles.speakStepTitle}>विद्यार्थ्याचे तोंडी उत्तर (Student Speaks)</Text>
+        </View>
+        <Text style={styles.speakStepDesc}>
+          प्रथम विद्यार्थ्याने स्वतः मनात विचार करून मोठ्याने उत्तर उच्चारावे.
+        </Text>
+        <View style={styles.speakMicPulseRow}>
+          <View style={[styles.speakMicPulseCircle, { backgroundColor: "#F5F3FF", borderColor: color }]}>
+            <Feather name="mic" size={24} color={color} />
+          </View>
+          <Text style={styles.speakMicHint}>
+            "आधी उत्तर मोठ्याने बोला..."
+          </Text>
+        </View>
+      </View>
+
+      {/* Step 2: Play Answer Button (Spoken, not shown on screen!) */}
+      <View style={styles.speakStepBox}>
+        <View style={styles.speakStepHeader}>
+          <View style={[styles.speakStepBadge, { backgroundColor: color }]}>
+            <Text style={styles.speakStepBadgeText}>२</Text>
+          </View>
+          <Text style={styles.speakStepTitle}>अचूक उत्तर ऐका (Listen to Answer)</Text>
+        </View>
+        <Text style={styles.speakStepDesc}>
+          विद्यार्थी बोलल्यावर खालील बटण दाबा; ॲप मराठीत योग्य उत्तर उच्चारेल:
+        </Text>
+        
+        <Pressable
+          onPress={speakAnswer}
+          style={({ pressed }) => [
+            styles.playAnswerBtn,
+            { backgroundColor: color },
+            pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+            isSpeakingAnswer && { backgroundColor: "#5642D8" },
+          ]}
+        >
+          <Feather
+            name={isSpeakingAnswer ? "volume-2" : hasPlayedAnswer ? "rotate-cw" : "play-circle"}
+            size={24}
+            color="#FFF"
+          />
+          <Text style={styles.playAnswerBtnText}>
+            {isSpeakingAnswer
+              ? "उत्तर बोलत आहे..."
+              : hasPlayedAnswer
+              ? "उत्तर पुन्हा ऐका (Play Again)"
+              : "उत्तर ऐका (Play Answer)"}
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* Step 3: Teacher / Parent Evaluation */}
+      <View style={styles.speakVerifyActionBox}>
+        <Text style={styles.speakVerifyPrompt}>
+          ३. विद्यार्थ्याचा तोंडी उच्चार बरोबर होता का? (Teacher Verification):
+        </Text>
+
+        <View style={styles.verifyBtnRow}>
+          <Pressable
+            onPress={() => onVerify(true)}
+            style={({ pressed }) => [
+              styles.verifyBtn,
+              styles.verifyBtnCorrect,
+              pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
+            ]}
+          >
+            <Feather name="check-circle" size={22} color="#FFF" />
+            <Text style={styles.verifyBtnText}>बरोबर ✓</Text>
+            <Text style={styles.verifyBtnSub}>Correct</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => onVerify(false)}
+            style={({ pressed }) => [
+              styles.verifyBtn,
+              styles.verifyBtnWrong,
+              pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
+            ]}
+          >
+            <Feather name="x-circle" size={22} color="#FFF" />
+            <Text style={styles.verifyBtnText}>चूक ✗</Text>
+            <Text style={styles.verifyBtnSub}>Needs Practice</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════════════
 // SUMMARY SCREEN
 // ═════════════════════════════════════════════════════════════════════
 function SummaryScreen({
@@ -913,7 +1098,7 @@ function SummaryScreen({
               Level {level} • {MODE_DATA.find(m => m.key === mode)?.title} • {total} प्रश्न
             </Text>
             <View style={styles.versionBadgeSmall}>
-              <Text style={styles.versionBadgeTextSmall}>v3.0</Text>
+              <Text style={styles.versionBadgeTextSmall}>v3.1</Text>
             </View>
           </View>
           <Text style={styles.summaryMessage}>{message}</Text>
@@ -1162,6 +1347,146 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   homeBtnText: { fontSize: 16, fontWeight: '800', color: '#17324D' },
+
+  // Speak & Verify
+  speakVerifyCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 22,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#DDE7EE",
+    shadowColor: "#17324D",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+    gap: 14,
+  },
+  speakStepBox: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  speakStepHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  speakStepBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  speakStepBadgeText: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  speakStepTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#17324D",
+  },
+  speakStepDesc: {
+    fontSize: 12,
+    color: "#64748B",
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  speakMicPulseRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 10,
+    backgroundColor: "#FFF",
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#EEF2F6",
+  },
+  speakMicPulseCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  speakMicHint: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#475569",
+    fontStyle: "italic",
+  },
+  playAnswerBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    height: 52,
+    borderRadius: 16,
+    marginTop: 10,
+    shadowColor: "#6C5CE7",
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  playAnswerBtnText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#FFF",
+    letterSpacing: 0.3,
+  },
+  speakVerifyActionBox: {
+    backgroundColor: "#FFF",
+    borderRadius: 16,
+    paddingTop: 4,
+  },
+  speakVerifyPrompt: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#17324D",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  verifyBtnRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  verifyBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  verifyBtnCorrect: {
+    backgroundColor: "#48A995",
+  },
+  verifyBtnWrong: {
+    backgroundColor: "#E95757",
+  },
+  verifyBtnText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#FFF",
+    marginTop: 2,
+  },
+  verifyBtnSub: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#FFF",
+    opacity: 0.9,
+    marginTop: 2,
+  },
 
   // Badges
   versionBadge: {
