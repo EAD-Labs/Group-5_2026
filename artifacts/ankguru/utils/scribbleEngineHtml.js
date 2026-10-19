@@ -453,7 +453,7 @@ html, body {
   margin: 0; padding: 0;
   width: 100%; height: 100%;
   background: #F8FAFC;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow: hidden;
   user-select: none;
 }
@@ -461,43 +461,43 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   height: 100vh;
-  padding: 4px 4px;
+  padding: 6px 4px;
   box-sizing: border-box;
 }
 .boards-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  padding: 0 2px;
+  padding: 0 4px;
 }
 .board-box {
   flex: 1;
-  max-width: 148px;
+  max-width: 175px;
   display: flex;
   flex-direction: column;
   align-items: center;
   box-sizing: border-box;
 }
 .board-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: #5C6B76;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
   white-space: nowrap;
 }
 .slate-frame {
   width: 100%;
   background: linear-gradient(160deg, #3B2A1C, #24190F);
-  border-radius: 12px;
-  padding: 5px;
+  border-radius: 14px;
+  padding: 6px;
   box-sizing: border-box;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25), 0 6px 14px -6px rgba(0,0,0,0.45);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25), 0 8px 18px -8px rgba(0,0,0,0.45);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -505,10 +505,7 @@ html, body {
 canvas {
   display: block;
   width: 100% !important;
-  height: auto !important;
-  aspect-ratio: 1 / 1;
-  max-width: 138px;
-  max-height: 138px;
+  height: 220px !important;
   background: #1E2B26;
   border-radius: 8px;
   touch-action: none;
@@ -522,8 +519,8 @@ canvas {
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  max-width: 310px;
-  margin-top: 8px;
+  max-width: 350px;
+  margin-top: 10px;
   padding: 0 4px;
   box-sizing: border-box;
 }
@@ -536,15 +533,15 @@ canvas {
   font-weight: 600;
 }
 input[type=range] {
-  width: 70px;
+  width: 75px;
   accent-color: #48A995;
 }
 button {
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   border-radius: 10px;
-  padding: 8px 12px;
+  padding: 8px 14px;
   border: none;
   cursor: pointer;
   transition: transform .08s ease, background .15s ease;
@@ -559,7 +556,7 @@ button:active { transform: scale(0.96); }
   background: #48A995;
   color: #FFF;
   box-shadow: 0 4px 10px rgba(72, 169, 149, 0.35);
-  padding: 8px 16px;
+  padding: 9px 18px;
 }
 </style>
 </head>
@@ -570,13 +567,13 @@ button:active { transform: scale(0.96); }
     <div class="board-box">
       <span class="board-label">दशक (10s)</span>
       <div class="slate-frame">
-        <canvas id="boardTens" width="160" height="160"></canvas>
+        <canvas id="boardTens" width="180" height="230"></canvas>
       </div>
     </div>
     <div class="board-box">
       <span class="board-label">एकक (1s)</span>
       <div class="slate-frame">
-        <canvas id="boardUnits" width="160" height="160"></canvas>
+        <canvas id="boardUnits" width="180" height="230"></canvas>
       </div>
     </div>
   </div>

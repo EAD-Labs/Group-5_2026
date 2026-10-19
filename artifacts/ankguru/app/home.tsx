@@ -167,6 +167,15 @@ const MODE_DATA = [
     color: '#48A995',
     bg: '#EEFBF7',
   },
+  {
+    key: 'speak',
+    title: 'Speak & Verify',
+    subtitle: 'बोला आणि तपासा',
+    desc: 'Speak answer aloud, listen to correct Marathi audio & verify',
+    icon: 'mic' as const,
+    color: '#6C5CE7',
+    bg: '#F5F3FF',
+  },
 ];
 
 // ═════════════════════════════════════════════════════════════════════
@@ -266,54 +275,56 @@ function HomeScreen({ onStart }: { onStart: (mode: string) => void }) {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
-      <View style={styles.homeContainer}>
-        <View style={styles.homeHeader}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandIcon}>
-              <Feather name="sun" size={22} color="#FFF" />
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 28 }} showsVerticalScrollIndicator={false}>
+        <View style={styles.homeContainer}>
+          <View style={styles.homeHeader}>
+            <View style={styles.brandRow}>
+              <View style={styles.brandIcon}>
+                <Feather name="sun" size={22} color="#FFF" />
+              </View>
+              <Text style={styles.brandText}>AnkGuru</Text>
+              <View style={styles.versionBadge}>
+                <Text style={styles.versionBadgeText}>v3.1</Text>
+              </View>
             </View>
-            <Text style={styles.brandText}>AnkGuru</Text>
-            <View style={styles.versionBadge}>
-              <Text style={styles.versionBadgeText}>v3.1</Text>
-            </View>
+            <Text style={styles.homeSubtitle}>गणित शिका • Learn Math • 100% Offline</Text>
           </View>
-          <Text style={styles.homeSubtitle}>गणित शिका • Learn Math • 100% Offline</Text>
-        </View>
 
-        <View style={styles.cardsContainer}>
-          {MODE_DATA.map((m, i) => {
-            const translateY = cardAnims[i].interpolate({ inputRange: [0, 1], outputRange: [40, 0] });
-            const opacity = cardAnims[i];
-            return (
-              <Animated.View key={m.key} style={{ opacity, transform: [{ translateY }] }}>
-                <Pressable
-                  onPress={() => onStart(m.key)}
-                  style={({ pressed }) => [
-                    styles.modeCard,
-                    { backgroundColor: m.bg, borderColor: m.color },
-                    pressed && styles.cardPressed,
-                  ]}
-                >
-                  <View style={[styles.modeIconCircle, { backgroundColor: m.color }]}>
-                    <Feather name={m.icon as any} size={26} color="#FFF" />
-                  </View>
-                  <View style={styles.modeCardText}>
-                    <Text style={[styles.modeTitle, { color: m.color }]}>{m.title}</Text>
-                    <Text style={styles.modeSubtitle}>{m.subtitle}</Text>
-                    <Text style={styles.modeDesc}>{m.desc}</Text>
-                  </View>
-                  <Feather name="chevron-right" size={22} color={m.color} />
-                </Pressable>
-              </Animated.View>
-            );
-          })}
-        </View>
+          <View style={styles.cardsContainer}>
+            {MODE_DATA.map((m, i) => {
+              const translateY = cardAnims[i].interpolate({ inputRange: [0, 1], outputRange: [40, 0] });
+              const opacity = cardAnims[i];
+              return (
+                <Animated.View key={m.key} style={{ opacity, transform: [{ translateY }] }}>
+                  <Pressable
+                    onPress={() => onStart(m.key)}
+                    style={({ pressed }) => [
+                      styles.modeCard,
+                      { backgroundColor: m.bg, borderColor: m.color },
+                      pressed && styles.cardPressed,
+                    ]}
+                  >
+                    <View style={[styles.modeIconCircle, { backgroundColor: m.color }]}>
+                      <Feather name={m.icon as any} size={26} color="#FFF" />
+                    </View>
+                    <View style={styles.modeCardText}>
+                      <Text style={[styles.modeTitle, { color: m.color }]}>{m.title}</Text>
+                      <Text style={styles.modeSubtitle}>{m.subtitle}</Text>
+                      <Text style={styles.modeDesc}>{m.desc}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={22} color={m.color} />
+                  </Pressable>
+                </Animated.View>
+              );
+            })}
+          </View>
 
-        <View style={styles.offlinePill}>
-          <Feather name="check-circle" size={14} color="#48A995" />
-          <Text style={styles.offlinePillText}>3 Interactive Modes • 100% Offline • No Internet Needed</Text>
+          <View style={styles.offlinePill}>
+            <Feather name="check-circle" size={14} color="#48A995" />
+            <Text style={styles.offlinePillText}>3 Interactive Modes • 100% Offline • No Internet Needed</Text>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -789,6 +800,9 @@ function PracticeScreen({
               )}
               {mode === 'scribble' && (
                 <ScribblePanel question={question} onResult={submitAnswer} color={modeInfo.color} />
+              )}
+              {mode === 'speak' && (
+                <SpeakVerifyPanel question={question} onVerify={(isCorrect) => submitAnswer(isCorrect ? 1 : 0)} color={modeInfo.color} />
               )}
             </>
           )}
@@ -1343,7 +1357,7 @@ const styles = StyleSheet.create({
 
   // Scribble
   scribbleCard: {
-    height: 395,
+    height: 440,
     backgroundColor: '#FFF',
     borderRadius: 20,
     overflow: 'hidden',
