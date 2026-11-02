@@ -10,7 +10,9 @@ html, body {
   width: 100%; height: 100%;
   background: #F8FAFC;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  overflow: hidden;
+  overflow: hidden !important;
+  touch-action: none !important;
+  overscroll-behavior: none !important;
   user-select: none;
 }
 .container {
@@ -57,13 +59,13 @@ html, body {
 canvas {
   display: block;
   width: 100% !important;
-  height: auto !important;
+  height: clamp(140px, calc(100vh - 105px), 230px) !important;
   aspect-ratio: 1 / 1;
   max-width: 238px;
-  max-height: 238px;
+  max-height: calc(100vh - 105px) !important;
   background: #1E2B26;
   border-radius: 8px;
-  touch-action: none;
+  touch-action: none !important;
   cursor: crosshair;
   box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
   box-sizing: border-box;
@@ -454,7 +456,9 @@ html, body {
   width: 100%; height: 100%;
   background: #F8FAFC;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  overflow: hidden;
+  overflow: hidden !important;
+  touch-action: none !important;
+  overscroll-behavior: none !important;
   user-select: none;
 }
 .container {
@@ -505,10 +509,10 @@ html, body {
 canvas {
   display: block;
   width: 100% !important;
-  height: 220px !important;
+  height: clamp(140px, calc(100vh - 105px), 220px) !important;
   background: #1E2B26;
   border-radius: 8px;
-  touch-action: none;
+  touch-action: none !important;
   cursor: crosshair;
   box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
   box-sizing: border-box;

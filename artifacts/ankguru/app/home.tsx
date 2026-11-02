@@ -705,8 +705,8 @@ function PracticeScreen({
           </Pressable>
         </View>
 
-        <ScrollView style={styles.interactionArea} contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }}>
-          {feedback ? (
+        {feedback ? (
+          <ScrollView style={styles.interactionArea} contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
             <View style={styles.feedbackContainer}>
               {/* Feedback Banner */}
               <View style={[
@@ -812,20 +812,21 @@ function PracticeScreen({
                 </Text>
               </Pressable>
             </View>
-          ) : (
-            <>
-              {mode === 'mcq' && (
-                <MCQPanel question={question} onSelect={submitAnswer} color={modeInfo.color} />
-              )}
-              {mode === 'scribble' && (
-                <ScribblePanel question={question} onResult={submitAnswer} color={modeInfo.color} />
-              )}
-              {mode === 'speak' && (
-                <SpeakVerifyPanel question={question} onVerify={(isCorrect) => submitAnswer(isCorrect ? 1 : 0)} color={modeInfo.color} />
-              )}
-            </>
-          )}
-        </ScrollView>
+          </ScrollView>
+        ) : mode === 'scribble' ? (
+          <View style={styles.scribbleAreaNoScroll}>
+            <ScribblePanel question={question} onResult={submitAnswer} color={modeInfo.color} />
+          </View>
+        ) : (
+          <ScrollView style={styles.interactionArea} contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+            {mode === 'mcq' && (
+              <MCQPanel question={question} onSelect={submitAnswer} color={modeInfo.color} />
+            )}
+            {mode === 'speak' && (
+              <SpeakVerifyPanel question={question} onVerify={(isCorrect) => submitAnswer(isCorrect ? 1 : 0)} color={modeInfo.color} />
+            )}
+          </ScrollView>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -1253,7 +1254,8 @@ function SummaryScreen({
 // ═════════════════════════════════════════════════════════════════════
 // STYLES
 // ═════════════════════════════════════════════════════════════════════
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const IS_COMPACT = SCREEN_HEIGHT < 750;
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F8FAFC' },
@@ -1343,25 +1345,29 @@ const styles = StyleSheet.create({
   sectionHeader: { fontSize: 14, fontWeight: '700', color: '#17324D', marginBottom: 10, marginTop: 4 },
 
   // Practice
-  practiceContainer: { flex: 1, paddingHorizontal: 18, paddingTop: 10 },
+  practiceContainer: { flex: 1, paddingHorizontal: 16, paddingTop: IS_COMPACT ? 6 : 10, paddingBottom: 6 },
   practiceTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center' },
-  practiceTitle: { fontSize: 18, fontWeight: '800' },
-  progressBar: { height: 6, backgroundColor: '#E2E8F0', borderRadius: 99, marginTop: 12, overflow: 'hidden' },
+  backBtn: { width: IS_COMPACT ? 36 : 40, height: IS_COMPACT ? 36 : 40, borderRadius: 12, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center' },
+  practiceTitle: { fontSize: IS_COMPACT ? 16 : 18, fontWeight: '800' },
+  progressBar: { height: 5, backgroundColor: '#E2E8F0', borderRadius: 99, marginTop: IS_COMPACT ? 6 : 10, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 99 },
-  progressText: { fontSize: 12, color: '#7A8994', fontWeight: '600', marginTop: 6, textAlign: 'center' },
+  progressText: { fontSize: IS_COMPACT ? 11 : 12, color: '#7A8994', fontWeight: '600', marginTop: IS_COMPACT ? 2 : 4, textAlign: 'center' },
 
   questionCard: {
-    backgroundColor: '#FFF', borderRadius: 20, padding: 18, marginTop: 12,
+    backgroundColor: '#FFF', borderRadius: 18,
+    paddingVertical: IS_COMPACT ? 8 : 14,
+    paddingHorizontal: 16,
+    marginTop: IS_COMPACT ? 6 : 10,
     alignItems: 'center',
     shadowColor: '#17324D', shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
-  qLabel: { fontSize: 13, color: '#7A8994', fontWeight: '600', textAlign: 'center' },
-  qText: { fontSize: 32, fontWeight: '800', color: '#17324D', marginVertical: 8 },
-  speakBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4, paddingHorizontal: 12 },
-  speakText: { fontSize: 13, color: '#8A969E', fontWeight: '600' },
+  qLabel: { fontSize: IS_COMPACT ? 11 : 13, color: '#7A8994', fontWeight: '600', textAlign: 'center' },
+  qText: { fontSize: IS_COMPACT ? 24 : 32, fontWeight: '800', color: '#17324D', marginVertical: IS_COMPACT ? 2 : 6 },
+  speakBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: IS_COMPACT ? 2 : 4, paddingHorizontal: 10 },
+  speakText: { fontSize: IS_COMPACT ? 11 : 13, color: '#8A969E', fontWeight: '600' },
 
-  interactionArea: { flex: 1, marginTop: 14 },
+  interactionArea: { flex: 1, marginTop: IS_COMPACT ? 8 : 12 },
+  scribbleAreaNoScroll: { flex: 1, marginTop: IS_COMPACT ? 6 : 10, marginBottom: 4 },
 
   // MCQ
   mcqGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
@@ -1376,7 +1382,7 @@ const styles = StyleSheet.create({
 
   // Scribble
   scribbleCard: {
-    height: 440,
+    flex: 1,
     backgroundColor: '#FFF',
     borderRadius: 20,
     overflow: 'hidden',
