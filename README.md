@@ -3,9 +3,9 @@
 
 ---
 
-> ### 🌐 [👉 View Project Introduction Webpage (Live Landing Page)](https://ead-labs.github.io/Group-5_2026/)
-> * **Alternative Instant Web Preview:** [Open via HTMLPreview](https://htmlpreview.github.io/?https://github.com/EAD-Labs/Group-5_2026/blob/main/index.html) *(Works immediately without waiting for GitHub Pages build)*
-> * **Repository Source:** View [`index.html`](./index.html) directly in this repo.
+> ### 🌐 [👉 View Project Introduction Webpage (Instant Live Preview)](https://htmlpreview.github.io/?https://github.com/EAD-Labs/Group-5_2026/blob/main/index.html)
+> * **Direct Repository Webpage:** [`index.html`](./index.html) *(Source code & offline structure)*
+> * **GitHub Pages Mirror:** [https://ead-labs.github.io/Group-5_2026/](https://ead-labs.github.io/Group-5_2026/) *(Active when TA/Admin toggles Pages in org settings)*
 
 ---
 
