@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnkGuru (अंकगुरू) — Offline AI-Powered Foundational Numeracy for Rural Tribal Learners</title>
+  <meta name="description" content="AnkGuru is a 100% offline, privacy-first Android educational app teaching foundational Devanagari numeracy and mental arithmetic to primary tribal learners in Maharashtra.">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <style>
+    :root {
+      --primary: #1A365D;
+      --primary-light: #2B6CB0;
+      --secondary: #0E7490;
+      --accent: #F6A64A;
+      --accent-dark: #C2410C;
+      --success: #48A995;
+      --bg: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --text: #0F172A;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.65;
+      color: var(--text);
+      background-color: var(--bg);
+    }
+    a { color: var(--secondary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Header Nav */
+    header {
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+    }
+    .nav-container {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0.9rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    .logo img {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+    }
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+    .nav-links a { color: var(--text-muted); }
+    .nav-links a:hover { color: var(--primary); text-decoration: none; }
+    .nav-btn {
+      background: var(--primary);
+      color: #FFFFFF !important;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+    .nav-btn:hover { background: var(--primary-light); }
+
+    /* Hero Section */
+    .hero {
+      background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #1A365D 100%);
+      color: #FFFFFF;
+      padding: 4.5rem 1.5rem 4rem;
+      text-align: center;
+    }
+    .hero-container {
+      max-width: 880px;
+      margin: 0 auto;
+    }
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(246, 166, 74, 0.15);
+      border: 1px solid rgba(246, 166, 74, 0.4);
+      color: #FBD38D;
+      padding: 0.35rem 1rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 {
+      font-size: 2.85rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      line-height: 1.2;
+      margin-bottom: 1rem;
+    }
+    .hero h1 span {
+      background: linear-gradient(120deg, #F6A64A, #FBD38D);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero p {
+      font-size: 1.2rem;
+      color: #CBD5E1;
+      max-width: 720px;
+      margin: 0 auto 2rem;
+      line-height: 1.6;
+    }
+    .hero-actions {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.85rem 1.6rem;
+      font-size: 1rem;
+      font-weight: 700;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #1A365D;
+      box-shadow: 0 4px 14px rgba(246, 166, 74, 0.35);
+    }
+    .btn-primary:hover {
+      background: #F8B768;
+      text-decoration: none;
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.12);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.2);
+      text-decoration: none;
+    }
+    .feature-tags {
+      display: flex;
+      justify-content: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      font-size: 0.85rem;
+      color: #94A3B8;
+    }
+    .feature-tags span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 3.5rem 1.5rem;
+    }
+
+    /* Section Headers */
+    .section-header {
+      text-align: center;
+      max-width: 720px;
+      margin: 0 auto 3rem;
+    }
+    .section-tag {
+      color: var(--secondary);
+      font-size: 0.85rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    .section-title {
+      font-size: 2.1rem;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 0.75rem;
+      line-height: 1.25;
+    }
+    .section-desc {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+    }
+
+    /* Cards Grid */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.75rem;
+      margin-bottom: 3rem;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.75rem;
+      margin-bottom: 3rem;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+    }
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .card h3 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+    .card-subtitle {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--secondary);
+      margin-bottom: 0.75rem;
+    }
+    .card p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    /* Highlight Banner */
+    .highlight-banner {
+      background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
+      border-left: 5px solid var(--primary-light);
+      border-radius: 12px;
+      padding: 1.5rem 1.75rem;
+      margin: 2rem 0;
+    }
+    .highlight-banner h4 {
+      color: var(--primary);
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+    .highlight-banner p {
+      color: #334155;
+      font-size: 0.95rem;
+      margin: 0;
+    }
+
+    /* Comparison Table */
+    .table-responsive {
+      overflow-x: auto;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+      margin-bottom: 3rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.95rem;
+    }
+    th, td {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      background-color: #F1F5F9;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) { background-color: #F8FAFC; }
+
+    /* Evidence Image Block */
+    .evidence-block {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 2.5rem;
+      text-align: center;
+    }
+    .evidence-block img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      margin-top: 1rem;
+    }
+    .evidence-caption {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 0.75rem;
+    }
+
+    /* Footer */
+    footer {
+      background: #0F172A;
+      color: #94A3B8;
+      padding: 3rem 1.5rem;
+      font-size: 0.9rem;
+      border-top: 1px solid #1E293B;
+    }
+    .footer-container {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 2rem;
+    }
+    .footer-col h4 {
+      color: #FFFFFF;
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+    .footer-col p { margin-bottom: 0.5rem; }
+    .footer-bottom {
+      max-width: 1120px;
+      margin: 2rem auto 0;
+      padding-top: 1.5rem;
+      border-top: 1px solid #1E293B;
+      text-align: center;
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 2.2rem; }
+      .hero p { font-size: 1.05rem; }
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header>
+    <div class="nav-container">
+      <div class="logo">
+        <img src="assets/icon.png" alt="AnkGuru Logo">
+        <span>AnkGuru (अंकगुरू)</span>
+      </div>
+      <div class="nav-links">
+        <a href="#problem">Problem</a>
+        <a href="#modes">Interactive Modes</a>
+        <a href="#personas">Learners</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#tracking">Jira Evidence</a>
+        <a href="#download" class="nav-btn">Download APK</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-container">
+      <div class="badge-pill">
+        <span>✨ ET 617 Educational Application Project • IIT Bombay</span>
+      </div>
+      <h1>Empowering Rural Tribal Learners with <span>Offline Devanagari Math</span></h1>
+      <p>
+        AnkGuru (अंकगुरू) is a 100% offline, privacy-first Android educational application designed to bridge spoken Marathi numbers with written Devanagari numerals for first-generation tribal primary learners in Palghar district.
+      </p>
+
+      <div class="hero-actions">
+        <a href="https://github.com/EAD-Labs/Group-5_2026/releases/download/v3.1/AnkGuru-v3.1-Final.apk" class="btn btn-primary">
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+          Download APK v3.1 (55 MB)
+        </a>
+        <a href="https://drive.google.com/file/d/1ar5OOENPHX6zPU_vvquvzu9AqVEOTYfv/view?usp=sharing" target="_blank" class="btn btn-secondary">
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445z"/></svg>
+          Watch Client Feedback Video
+        </a>
+        <a href="FIELD_STUDY_REPORT.pdf" target="_blank" class="btn btn-secondary">
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/></svg>
+          5-Page Field Report (PDF)
+        </a>
+      </div>
+
+      <div class="feature-tags">
+        <span>⚡ 100% Fully Offline</span> •
+        <span>🛡️ Zero Cloud / No Ads</span> •
+        <span>🗣️ Native Marathi Speech</span> •
+        <span>✍️ Embedded 156k CNN Digit Recognizer</span> •
+        <span>📱 Lightweight 55 MB</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Problem & Context Section -->
+  <section id="problem" class="container">
+    <div class="section-header">
+      <div class="section-tag">Context & Challenge</div>
+      <h2 class="section-title">The Rural Numeracy Gap in Palghar</h2>
+      <p class="section-desc">
+        Developed in collaboration with <strong>N+1 NGO</strong> (Client: Mr. Amod Joshi) for first-generation tribal learners in Zilla Parishad and Ashram residential schools.
+      </p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-icon" style="background: #FEE2E2; color: #DC2626;">🔤</div>
+        <h3>Sound-to-Symbol Barrier</h3>
+        <p>Children naturally speak regional Marathi at home, but struggle to connect spoken number words (e.g., "अठ्ठावीस" / 28) with written Devanagari numerals. Reversal errors (writing 82) are common without 1-on-1 feedback.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon" style="background: #FEF3C7; color: #D97706;">🏫</div>
+        <h3>Overcrowded Classrooms</h3>
+        <p>Single-teacher schools force multi-grade sessions where one instructor manages 35–45 students across Grades 3 to 6 simultaneously. Children get only 2–3 practice turns per 45-minute lesson.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon" style="background: #E0E7FF; color: #4338CA;">📵</div>
+        <h3>Zero Rural Connectivity</h3>
+        <p>Ashram schools and tribal hamlets have no cellular data or Wi-Fi. Mainstream educational apps fail because they require cloud servers, high-end smartphones, or recurring subscriptions.</p>
+      </div>
+    </div>
+
+    <div class="highlight-banner">
+      <h4>The Agreed Solution: 100% Offline Multi-Modal Numeracy</h4>
+      <p>
+        AnkGuru runs completely on low-cost Android phones (Android 8 through 15) with zero internet access. All neural network weights and speech synthesis engines execute locally on the device with zero operational costs.
+      </p>
+    </div>
+  </section>
+
+  <!-- Interactive Modes Section -->
+  <section id="modes" style="background: #FFFFFF; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag">Pedagogical Design</div>
+        <h2 class="section-title">Three Progressive Learning Modes</h2>
+        <p class="section-desc">Designed to build auditory, tactile writing, and oral articulation confidence across digits 1 to 100.</p>
+      </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-icon" style="background: #E0F2FE; color: #0284C7;">🔊</div>
+          <h3>1. Listen & Choose</h3>
+          <div class="card-subtitle">ऐका आणि निवडा • MCQ Mode</div>
+          <p>The app speaks a Marathi prompt aloud (e.g. <em>"सत्तावीस अधिक तीन किती?"</em>). The student taps the correct Devanagari answer card among 4 randomized choices with immediate chime feedback.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon" style="background: #DCFCE7; color: #16A34A;">✍️</div>
+          <h3>2. Listen & Draw</h3>
+          <div class="card-subtitle">ऐका आणि लिहा • Slate Scribble</div>
+          <p>Children draw numerals on responsive dual chalkboard slates (Tens & Units). Evaluated in real-time by an offline <strong>156,000-parameter Devanagari CNN</strong> with <strong>&ge;20% runner-up threshold</strong> to forgive shaky child strokes.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon" style="background: #FCE7F3; color: #DB2777;">🗣️</div>
+          <h3>3. Speak & Verify</h3>
+          <div class="card-subtitle">बोला आणि तपासा • Oral Practice</div>
+          <p>Math problem appears on screen. The child calculates mentally and articulates the answer aloud. Tapping "Play Audio" speaks pristine Marathi pronunciation for student self-check and teacher verification.</p>
+        </div>
+      </div>
+
+      <!-- Poster Overview Image -->
+      <div class="evidence-block">
+        <h3 style="color: var(--primary); margin-bottom: 0.5rem;">Visual Poster & Screen Progression</h3>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Complete system presentation poster created for course exhibition:</p>
+        <img src="assets/poster.png" alt="AnkGuru Final Presentation Poster">
+        <div class="evidence-caption">AnkGuru Complete Presentation Poster detailing Client Requirements, Personas, 3 Modes, and Pilot Evaluation.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Personas Section -->
+  <section id="personas" class="container">
+    <div class="section-header">
+      <div class="section-tag">Target Audience</div>
+      <h2 class="section-title">Designed Around Real Personas</h2>
+      <p class="section-desc">Tailored to the exact cognitive and environmental constraints of rural primary learners.</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card" style="border-top: 4px solid var(--secondary);">
+        <div class="card-icon" style="background: #E0F2FE; color: var(--secondary);">👧</div>
+        <h3>Primary Persona: Meera</h3>
+        <div class="card-subtitle">Grade 4 Student • Age 9.5 • Warli Tribal Community</div>
+        <ul style="padding-left: 1.2rem; color: var(--text-muted); font-size: 0.95rem; line-height: 1.65;">
+          <li><strong>Background:</strong> First-generation learner in a Palghar residential Ashram school. Speaks regional Marathi; limited reading literacy.</li>
+          <li><strong>Goals:</strong> Practice numbers (1–100) and addition/subtraction without fear of scolding or peer embarrassment.</li>
+          <li><strong>Interface Needs:</strong> Audio-prompted navigation and tactile finger drawing bypassing text barriers; large, high-contrast touch targets.</li>
+          <li><strong>Device Reality:</strong> Shared budget smartphone (2 GB RAM, cracked screen) with zero mobile data.</li>
+        </ul>
+      </div>
+
+      <div class="card" style="border-top: 4px solid var(--success);">
+        <div class="card-icon" style="background: #DCFCE7; color: var(--success);">👨‍🏫</div>
+        <h3>Secondary Persona: NGO Facilitator</h3>
+        <div class="card-subtitle">Community Teacher • Suresh Kamble • N+1 NGO</div>
+        <ul style="padding-left: 1.2rem; color: var(--text-muted); font-size: 0.95rem; line-height: 1.65;">
+          <li><strong>Role:</strong> Manages classroom remedial sessions of up to 40 students across 5 grades simultaneously.</li>
+          <li><strong>Goals:</strong> Run smooth, engaging numeracy sessions without adding manual grading workload.</li>
+          <li><strong>Needs:</strong> 100% offline plug-and-play reliability with zero software setup, logins, or passwords to troubleshoot.</li>
+          <li><strong>Supervision:</strong> Effortlessly verify oral student answers via the "Speak & Verify" mode in seconds.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Engineering Architecture Section -->
+  <section id="architecture" style="background: #FFFFFF; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-tag">Technical Innovations</div>
+        <h2 class="section-title">Field-Proven Engineering Decisions</h2>
+        <p class="section-desc">How technical bottlenecks were resolved to ensure seamless offline performance.</p>
+      </div>
+
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Component</th>
+              <th>Engineering Challenge</th>
+              <th>AnkGuru Solution</th>
+              <th>Measured Impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Handwriting Recognition</strong></td>
+              <td>Children draw shaky, uncentered Devanagari strokes on touchscreen.</td>
+              <td>2D Integral Bounding-Box normalization + 156k CNN with &ge;20% runner-up threshold.</td>
+              <td><strong>96.4% Accuracy</strong> on irregular child handwriting.</td>
+            </tr>
+            <tr>
+              <td><strong>Marathi Speech (TTS)</strong></td>
+              <td>Android 14 package visibility blocked regional Marathi voice packs.</td>
+              <td>Declared <code>TTS_SERVICE</code> intent queries + 3-tier cascade (<code>mr-IN</code> &rarr; <code>hi-IN</code> &rarr; phonetics).</td>
+              <td><strong>100% Out-of-the-Box</strong> Marathi speech across Android 8 to 15.</td>
+            </tr>
+            <tr>
+              <td><strong>Screen Layout on Compact Phones</strong></td>
+              <td>Realme & budget phones scrolled up and down while student was scribbling.</td>
+              <td>Replaced ScrollView with <code>flex: 1</code> locked view; responsive slate height via <code>clamp(...)</code>.</td>
+              <td><strong>Zero Screen Drift</strong> during drawing on all phone sizes.</td>
+            </tr>
+            <tr>
+              <td><strong>App Size & Thermal Load</strong></td>
+              <td>Offline Whisper ASR bloated APK to 198 MB and caused thermal throttling.</td>
+              <td>Pivoted to "Speak & Verify" oral flow + lightweight embedded CNN.</td>
+              <td><strong>72% Smaller Build (55 MB)</strong> with 0 ms inference lag.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Jira Tracking Evidence Section -->
+  <section id="tracking" class="container">
+    <div class="section-header">
+      <div class="section-tag">Project Management & Tracking</div>
+      <h2 class="section-title">Verified Jira Tracking Evidence</h2>
+      <p class="section-desc">Full transparency into our sprint execution, task allocations, and milestone completions.</p>
+    </div>
+
+    <div class="highlight-banner" style="background: #F0FDF4; border-color: var(--success); margin-bottom: 2rem;">
+      <h4 style="color: #166534;">✅ 27 Sprints & Operational Tasks Completed</h4>
+      <p style="color: #14532D;">
+        All milestones across requirements analysis, HLD sign-off, core CNN integration, cascading Marathi TTS, Speak & Verify mode, responsive slate geometry, and client pilot validations were systematically tracked and resolved in Jira.
+      </p>
+    </div>
+
+    <div class="grid-2">
+      <div class="evidence-block">
+        <h4 style="color: var(--primary);">Jira Tasks Summary (Page 1)</h4>
+        <img src="assets/tracking/jira_tasks_page_1.png" alt="Jira Tasks Board Page 1">
+        <div class="evidence-caption">Tasks AJ-20 through AJ-43 completed with assigned deliverables and verification logs.</div>
+      </div>
+
+      <div class="evidence-block">
+        <h4 style="color: var(--primary);">Jira Tasks Summary (Page 2)</h4>
+        <img src="assets/tracking/jira_tasks_page_2.png" alt="Jira Tasks Board Page 2">
+        <div class="evidence-caption">Tasks AJ-1 through AJ-19 showing foundational setup and milestone reviews.</div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 1rem;">
+      <a href="Jira-tasks.pdf" target="_blank" class="btn btn-primary" style="background: var(--primary); color: #FFF;">
+        📄 Download Complete Jira Tasks Report (PDF)
+      </a>
+    </div>
+  </section>
+
+  <!-- Download & Test Section -->
+  <section id="download" class="hero" style="background: linear-gradient(135deg, #1A365D 0%, #0E7490 100%);">
+    <div class="hero-container">
+      <h2 style="font-size: 2.3rem; margin-bottom: 1rem;">Try AnkGuru Live on Android</h2>
+      <p style="font-size: 1.1rem; max-width: 650px; margin: 0 auto 2rem;">
+        Install the production APK on any Android phone (Android 8.0 to Android 15) to test the Marathi speech synthesis, dual chalkboard slates, and oral practice modes.
+      </p>
+
+      <div class="hero-actions">
+        <a href="https://github.com/EAD-Labs/Group-5_2026/releases/download/v3.1/AnkGuru-v3.1-Final.apk" class="btn btn-primary">
+          📥 Direct Download APK v3.1 (55.45 MB)
+        </a>
+        <a href="https://tinyurl.com/ankguru-app" target="_blank" class="btn btn-secondary">
+          ☁️ Google Drive Mirror (Short Link)
+        </a>
+      </div>
+
+      <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 1.25rem; max-width: 600px; margin: 0 auto; text-align: left; font-size: 0.9rem;">
+        <strong>Quick Android Install Guide:</strong>
+        <ol style="margin-top: 0.5rem; padding-left: 1.2rem; line-height: 1.5;">
+          <li>Download the <code>.apk</code> file onto your Android device.</li>
+          <li>Tap the downloaded file. If prompted by your browser, tap <em>Settings</em> and enable <em>"Allow from this source"</em>.</li>
+          <li>Tap <strong>Install</strong> and launch AnkGuru! (No accounts or internet needed).</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-container">
+      <div class="footer-col">
+        <h4>AnkGuru (अंकगुरू)</h4>
+        <p>Offline AI-Powered Foundational Numeracy</p>
+        <p>Developed for ET 617 Educational Application Development</p>
+        <p>Indian Institute of Technology Bombay (IIT Bombay)</p>
+      </div>
+
+      <div class="footer-col">
+        <h4>Project Team (Group 5)</h4>
+        <p><strong>Lakshaditya Singh</strong> (23B2230) — Lead System Architect</p>
+        <p><strong>Aagam S. Kasaliwal</strong> (23B2215) — ML & Data Engineer</p>
+        <p><strong>Aditya Anand Gupta</strong> (23B2144) — UI/UX & QA Engineer</p>
+      </div>
+
+      <div class="footer-col">
+        <h4>Partner Organization</h4>
+        <p><strong>N+1 NGO</strong> ("One Story. One Idea. One Action")</p>
+        <p><strong>Client Contact:</strong> Mr. Amod Joshi (Founder & Coordinator)</p>
+        <p><strong>Target Deployment:</strong> Palghar District, Maharashtra</p>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      Released under the <a href="https://creativecommons.org/licenses/by/4.0/" style="color: #CBD5E1;">Creative Commons Attribution 4.0 International (CC BY 4.0)</a> License.
+    </div>
+  </footer>
+
+</body>
+</html>

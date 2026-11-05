@@ -51,3 +51,12 @@ android/
 gradle_debug.log
 *.bin
 .easignore
+
+# Large Binaries, Build Artifacts & Media (Hosted via GitHub Releases / GDrive)
+*.apk
+*.mp4
+*.wav
+*.aux
+*.log
+*.out
+hld_extracted.txt
