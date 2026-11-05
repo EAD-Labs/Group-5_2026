@@ -5,8 +5,8 @@
 **Target Platform**: Android (React Native / Expo Bare Workflow, API Level 24 to 35+)  
 **Lead Engineer / Primary Contributor**: Lakshaditya (`Thunder25Beast`)  
 **Contributors**: Aagam Kasliwal (`AagamKas`), Aditya A. Gupta (`Aditya-A-Gupta`)  
-**Current Version**: v3.1 (versionCode 6)  
-**Binary Size**: 55.45 MB (reduced from ~198 MB)  
+**Current Version**: v3.2 Responsive (versionCode 7)  
+**Binary Size**: 55.46 MB (reduced from ~198 MB)  
 **Operational Requirement**: 100% Offline (Zero internet, zero external API dependencies)
 
 ---
@@ -375,24 +375,23 @@ To make Marathi speech **100% universal across all Android versions (Android 8 t
 
 ```
 E:\AnkGuru\
-├── AnkGuru-v3.1-Final.apk              # Production release APK (55.45 MB)
+├── AnkGuru-v3.2-Responsive.apk         # Production release APK (55.46 MB)
 ├── LICENSE                             # CC-BY-4.0 International Public License
 ├── README.md                           # Repository documentation
 ├── PROJECT_DOCUMENTATION.md            # Comprehensive engineering documentation
 ├── artifacts\ankguru\
-│   ├── app.json                        # Expo app configuration (v3.1.0, permissions cleaned)
+│   ├── app.json                        # Expo app configuration (v3.2.0, permissions cleaned)
 │   ├── package.json                    # Dependencies (whisper & pcm stream purged)
 │   ├── app\
 │   │   ├── _layout.tsx                 # Root layout & screen provider
 │   │   ├── index.tsx                   # Entry route redirecting to home
-│   │   └── home.tsx                    # Core application engine (3 modes, TTS cascade, BackHandler)
+│   │   └── home.tsx                    # Core application engine (3 modes, TTS cascade, BackHandler, responsive slate)
 │   ├── components\
 │   │   └── KeyboardAwareScrollViewCompat.tsx  # Compatibility scrollview component
-│   ├── utils\
-│   │   └── scribbleEngineHtml.js       # Embedded 156k CNN weights & HTML chalkboard engine
+│   │   └── scribbleEngineHtml.js       # Embedded 156k CNN weights & responsive HTML chalkboard engine
 │   └── android\
 │       ├── app\
-│       │   ├── build.gradle            # versionCode 6, versionName "3.1"
+│       │   ├── build.gradle            # versionCode 7, versionName "3.2"
 │       │   └── src\main\
 │       │       └── AndroidManifest.xml # Declares android.intent.action.TTS_SERVICE
 │       └── gradlew.bat                 # Gradle build wrapper
@@ -402,12 +401,12 @@ E:\AnkGuru\
 
 ## 8. Release Metrics & Final Binary Comparison
 
-| Metric | AnkGuru v2.0 (Monolith) | AnkGuru v3.1 (Current Production) | Improvement |
+| Metric | AnkGuru v2.0 (Monolith) | AnkGuru v3.2 (Current Production) | Improvement |
 | :--- | :--- | :--- | :--- |
-| **APK Binary Size** | **198.4 MB** | **55.45 MB** | **-72.1% (~143 MB saved)** |
+| **APK Binary Size** | **198.4 MB** | **55.46 MB** | **-72.1% (~143 MB saved)** |
 | **ASR Inference Time** | 6.2s – 14.8s (Whisper) | **0 ms (Instant Oral Verify)** | **Infinite speedup** |
 | **Handwriting Accuracy** | ~48% (Vector Heuristics) | **~96.4% (CNN + 20% Runner-Up)** | **+100.8% accuracy gain** |
-| **Canvas Slates** | Fixed Square (160x160) | **Tall Slates (220px, Responsive)** | **Comfortable finger-writing** |
+| **Canvas Slates** | Fixed Square (160x160) | **Tall Slates (220px, Responsive & Locked)** | **Zero screen drift on compact phones** |
 | **Android 14 Speech** | Failed (Spoke English) | **100% Native Marathi Cascade** | **Universal out-of-the-box** |
 | **Back Button Nav** | Closed app abruptly | **Smooth hierarchical backstack** | **Native Android experience** |
 | **Available Modes** | 2 working (1 broken ASR) | **3 complete offline modes** | **Full curriculum coverage** |

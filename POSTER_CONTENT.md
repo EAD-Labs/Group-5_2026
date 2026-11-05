@@ -5,7 +5,7 @@
 **Organization**: N+1 NGO ("One Story. One Idea. One Action")  
 **Client Contact**: Mr. Amod Joshi  
 **Student Team**: Lakshaditya Singh (23B2230), Aagam S Kasaliwal (23B2215), Aditya Anand Gupta (23B2144)  
-**Application Version**: AnkGuru v3.1 Final Production Release (55.45 MB)  
+**Application Version**: AnkGuru v3.2 Responsive Production Release (55.46 MB)  
 **Target Users**: Grade 3–6 First-Generation Tribal Learners in Zilla Parishad & Ashram Schools, Palghar District  
 **License**: Creative Commons Attribution 4.0 International (CC-BY-4.0)
 
@@ -70,23 +70,23 @@
 7. **System Integration & Optimization**: Merged all engines into a single standalone React Native bare workflow APK, slashing binary size by 72.1% (from 198.4 MB down to 55.45 MB).
 8. **Pilot Refinements for Tribal Learners**: Implemented 2D integral bounding-box normalization, enlarged dual slates to tall rectangular chalkboard geometries (220px), and added secondary runner-up probability acceptance ($\ge 20\%$) for ambiguous strokes.
 
-> **Outcome**: A production-ready, 100% offline educational application (v3.1, 55.45 MB) satisfying all core HLD requirements.
+> **Outcome**: A production-ready, 100% offline educational application (v3.2 Responsive, 55.46 MB) satisfying all core HLD requirements.
 
 ---
 
 ## 04 Current Status & Working Application
 *Tags: 3 Modes Live • 100% Offline*
 
-**Operational Status**: Final Release v3.1 is compiled, signed, and production-tested on Android API levels 24 to 35+ (Android 7.0 through Android 15). All three interactive modes are live, stable, and completely offline.
+**Operational Status**: Final Release v3.2 (Responsive) is compiled, signed, and production-tested on Android API levels 24 to 35+ (Android 7.0 through Android 15). All three interactive modes are live, stable, and completely offline.
 
 ### Screen & Interface Breakdown
 - **Home Screen (Choose a Mode)**: Practice level selector (1–4), interactive mode cards, and question count selector (5 to 20 questions) with smooth hardware back button navigation.
 - **Listen & Choose (Basic Listening)**: High-contrast Devanagari answer cards; auto-plays audio prompt with settling-delay protection against sound clipping.
-- **Listen & Draw (Dual Slate Scribble)**: Independent tall rectangular chalkboard slates for Tens (दशक) and Units (एकक) with offline CNN inference and live confidence display.
+- **Listen & Draw (Dual Slate Scribble)**: Independent tall rectangular chalkboard slates for Tens (दशक) and Units (एकक) with offline CNN inference, responsive height clamping, and locked touch viewport preventing screen drift on compact phones.
 - **Speak & Verify (Oral Practice)**: Clear math problem prompt, child articulation instruction, and instant Marathi pronunciation playback with facilitator confirmation.
 
 **Live Release**: Listen & Choose (MCQ) + Listen & Draw (Dual Slates) + Speak & Verify (Oral Practice)  
-**APK Download**: Scan QR code to download `AnkGuru-v3.1-Final.apk` (55.45 MB) directly via Google Drive / TinyURL: [tinyurl.com/ankguru-app](https://tinyurl.com/ankguru-app)
+**APK Download**: Scan QR code to download `AnkGuru-v3.2-Responsive.apk` (55.46 MB) directly via Google Drive / TinyURL: [tinyurl.com/ankguru-app](https://tinyurl.com/ankguru-app)
 
 ---
 
