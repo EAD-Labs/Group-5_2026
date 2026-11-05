@@ -3,8 +3,9 @@
 
 ---
 
-> ### 🌐 [👉 View Project Introduction Webpage (Non-Technical Landing Page)](https://ead-labs.github.io/Group-5_2026/)
-> **Prefer viewing locally?** Open [`index.html`](./index.html) in any web browser to explore our non-technical project introduction, educational context, target personas, interactive modes, and pilot results.
+> ### 🌐 [👉 View Project Introduction Webpage (Live Landing Page)](https://ead-labs.github.io/Group-5_2026/)
+> * **Alternative Instant Web Preview:** [Open via HTMLPreview](https://htmlpreview.github.io/?https://github.com/EAD-Labs/Group-5_2026/blob/main/index.html) *(Works immediately without waiting for GitHub Pages build)*
+> * **Repository Source:** View [`index.html`](./index.html) directly in this repo.
 
 ---
 
@@ -21,7 +22,7 @@
 
 | Deliverable | Description | Direct Access Link |
 | :--- | :--- | :--- |
-| 🌐 **Project Introduction Page** | Interactive landing page for non-technical audiences | [Open Live Page](https://ead-labs.github.io/Group-5_2026/) • [`index.html`](./index.html) |
+| 🌐 **Project Introduction Page** | Interactive landing page for non-technical audiences | [Live GitHub Pages](https://ead-labs.github.io/Group-5_2026/) • [Instant Web Preview](https://htmlpreview.github.io/?https://github.com/EAD-Labs/Group-5_2026/blob/main/index.html) • [`index.html`](./index.html) |
 | 📱 **Production APK (v3.1)** | Ready-to-install Android APK (tested Android 8–15) | [Direct Download (55.45 MB)](https://github.com/EAD-Labs/Group-5_2026/releases/download/v3.1/AnkGuru-v3.1-Final.apk) • [GDrive Mirror](https://tinyurl.com/ankguru-app) |
 | 🎥 **Client Feedback Video** | 2–3 min video featuring Mr. Amod Joshi (N+1 NGO) | [Watch on Google Drive](https://drive.google.com/file/d/1ar5OOENPHX6zPU_vvquvzu9AqVEOTYfv/view?usp=sharing) |
 | 📄 **Field Study Report** | Strict 5-Page Field Study & System Design Report (PDF) | [View Report PDF](./FIELD_STUDY_REPORT.pdf) • [LaTeX Source](./FIELD_STUDY_REPORT.tex) |
