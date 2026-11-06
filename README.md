@@ -24,9 +24,9 @@
 | 🌐 **Project Introduction Page** | Interactive landing page for non-technical audiences | [Open Webpage (Instant Live Preview)](https://htmlpreview.github.io/?https://github.com/EAD-Labs/Group-5_2026/blob/main/index.html) • [`index.html`](./index.html) |
 | 📱 **Latest Production APK (v3.2)** | Ready-to-install Android APK with responsive slate (Android 8–15) | [Direct Download v3.2 Responsive (Google Drive)](https://drive.google.com/file/d/1aKDtSQNlxlnIVq79fnIzRep6o6aBYD3f/view?usp=sharing) |
 | 🎥 **Client Feedback Video** | 2–3 min video featuring Mr. Amod Joshi (N+1 NGO) | [Watch on Google Drive](https://drive.google.com/file/d/1ar5OOENPHX6zPU_vvquvzu9AqVEOTYfv/view?usp=sharing) |
-| 📄 **Field Study Report** | Strict 5-Page Field Study & System Design Report (PDF) | [View Report PDF](./FIELD_STUDY_REPORT.pdf) • [LaTeX Source](./FIELD_STUDY_REPORT.tex) |
+| 📄 **Field Study Report** | Strict 5-Page Field Study & System Design Report (PDF) | [View Final 5-Page Report (PDF)](./AnkGuru_Field_Study_Report.pdf) |
 | 🖼️ **Exhibition Poster** | Final high-resolution conference & evaluation poster | [View Poster Image](./assets/poster.png) • [Poster Notes](./POSTER_CONTENT.md) |
-| 📋 **Project Tracking (Jira)** | Sprint tracking screenshots & complete task audit | [View Jira Tasks PDF](https://github.com/EAD-Labs/Group-5_2026/blob/main/Jira-tasks.pdf) • [Evidence Section](#project-management--jira-tracking-evidence) |
+| 📋 **Project Tracking (Jira)** | Sprint tracking screenshots & complete task audit | [View Jira Tasks PDF](https://github.com/EAD-Labs/Group-5_2026/blob/main/Jira-tasks.pdf) |
 
 ---
 
@@ -208,8 +208,7 @@ No developer tools or setup required. Install directly on any Android smartphone
 Group-5_2026/
 ├── index.html                     # Project Introduction Landing Page (Non-Technical Audience)
 ├── README.md                      # Primary Project Documentation & Evaluation Overview
-├── FIELD_STUDY_REPORT.pdf         # Strict 5-Page Field Study & System Design Report (PDF)
-├── FIELD_STUDY_REPORT.tex         # LaTeX Source Code for the 5-Page Report
+├── AnkGuru_Field_Study_Report.pdf # Strict 5-Page Field Study & System Design Report (PDF)
 ├── Jira-tasks.pdf                 # Complete Jira Tasks & Sprint Execution Export (PDF)
 ├── HLD-V3.docx                    # High-Level Design Document V3 (Client Approved)
 ├── POSTER_CONTENT.md              # Exhibition Poster Transcript & Content Guide
