@@ -13,7 +13,7 @@
 [![Client](https://img.shields.io/badge/Client-N%2B1%20NGO-orange.svg)](#client-organization--operational-domain)
 [![License](https://img.shields.io/badge/License-CC%20BY%204.0-success.svg)](https://creativecommons.org/licenses/by/4.0/)
 [![Offline](https://img.shields.io/badge/Operation-100%25%20Offline-teal.svg)](#key-architectural-highlights)
-[![Release](https://img.shields.io/badge/Release-v3.2%20Responsive%20APK-brightgreen.svg)](https://github.com/EAD-Labs/Group-5_2026/releases/download/v3.2/AnkGuru-v3.2-Responsive.apk)
+[![Release](https://img.shields.io/badge/Release-v3.2%20Responsive%20APK-brightgreen.svg)](https://drive.google.com/file/d/1aKDtSQNlxlnIVq79fnIzRep6o6aBYD3f/view?usp=sharing)
 
 ---
 
@@ -22,7 +22,7 @@
 | Deliverable | Description | Direct Access Link |
 | :--- | :--- | :--- |
 | 🌐 **Project Introduction Page** | Interactive landing page for non-technical audiences | [Open Webpage (Instant Live Preview)](https://htmlpreview.github.io/?https://github.com/EAD-Labs/Group-5_2026/blob/main/index.html) • [`index.html`](./index.html) |
-| 📱 **Latest Production APK (v3.2)** | Ready-to-install Android APK with responsive slate (Android 8–15) | [Direct Download v3.2 Responsive (55.46 MB)](https://github.com/EAD-Labs/Group-5_2026/releases/download/v3.2/AnkGuru-v3.2-Responsive.apk) • [GDrive Mirror](https://tinyurl.com/ankguru-app) |
+| 📱 **Latest Production APK (v3.2)** | Ready-to-install Android APK with responsive slate (Android 8–15) | [Direct Download v3.2 Responsive (Google Drive)](https://drive.google.com/file/d/1aKDtSQNlxlnIVq79fnIzRep6o6aBYD3f/view?usp=sharing) |
 | 🎥 **Client Feedback Video** | 2–3 min video featuring Mr. Amod Joshi (N+1 NGO) | [Watch on Google Drive](https://drive.google.com/file/d/1ar5OOENPHX6zPU_vvquvzu9AqVEOTYfv/view?usp=sharing) |
 | 📄 **Field Study Report** | Strict 5-Page Field Study & System Design Report (PDF) | [View Report PDF](./FIELD_STUDY_REPORT.pdf) • [LaTeX Source](./FIELD_STUDY_REPORT.tex) |
 | 🖼️ **Exhibition Poster** | Final high-resolution conference & evaluation poster | [View Poster Image](./assets/poster.png) • [Poster Notes](./POSTER_CONTENT.md) |
@@ -154,7 +154,7 @@ All engineering milestones, sprint backlogs, bug fixes, and client acceptance cr
 
 ### Option A: Install on an Android Smartphone (Recommended for Evaluators)
 No developer tools or setup required. Install directly on any Android smartphone running Android 8.0 (Oreo) up to Android 15:
-1. **Download the APK:** Download [`AnkGuru-v3.2-Responsive.apk`](https://github.com/EAD-Labs/Group-5_2026/releases/download/v3.2/AnkGuru-v3.2-Responsive.apk) directly or use the [Google Drive Mirror](https://tinyurl.com/ankguru-app).
+1. **Download the APK:** Download [`AnkGuru-v3.2-Responsive.apk`](https://drive.google.com/file/d/1aKDtSQNlxlnIVq79fnIzRep6o6aBYD3f/view?usp=sharing) directly via Google Drive.
 2. **Allow Installation:** Tap the downloaded file. When prompted by Android, select **Settings** and enable **"Allow from this source"**.
 3. **Launch:** Tap **Install**, then open **AnkGuru**. The app works immediately without requiring internet or account login.
 

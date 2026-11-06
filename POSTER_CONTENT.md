@@ -86,7 +86,7 @@
 - **Speak & Verify (Oral Practice)**: Clear math problem prompt, child articulation instruction, and instant Marathi pronunciation playback with facilitator confirmation.
 
 **Live Release**: Listen & Choose (MCQ) + Listen & Draw (Dual Slates) + Speak & Verify (Oral Practice)  
-**APK Download**: Scan QR code to download `AnkGuru-v3.2-Responsive.apk` (55.46 MB) directly via Google Drive / TinyURL: [tinyurl.com/ankguru-app](https://tinyurl.com/ankguru-app)
+**APK Download**: Download `AnkGuru-v3.2-Responsive.apk` (55.46 MB) directly via Google Drive: [Download APK v3.2](https://drive.google.com/file/d/1aKDtSQNlxlnIVq79fnIzRep6o6aBYD3f/view?usp=sharing)
 
 ---
 
