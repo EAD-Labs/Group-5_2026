@@ -26,7 +26,7 @@
 | 🎥 **Client Feedback Video** | 2–3 min video featuring Mr. Amod Joshi (N+1 NGO) | [Watch on Google Drive](https://drive.google.com/file/d/1ar5OOENPHX6zPU_vvquvzu9AqVEOTYfv/view?usp=sharing) |
 | 📄 **Field Study Report** | Strict 5-Page Field Study & System Design Report (PDF) | [View Report PDF](./FIELD_STUDY_REPORT.pdf) • [LaTeX Source](./FIELD_STUDY_REPORT.tex) |
 | 🖼️ **Exhibition Poster** | Final high-resolution conference & evaluation poster | [View Poster Image](./assets/poster.png) • [Poster Notes](./POSTER_CONTENT.md) |
-| 📋 **Project Tracking (Jira)** | Sprint tracking screenshots & complete task logs | [Jira Evidence Section](#project-management--jira-tracking-evidence) • [Download PDF](./Jira-tasks.pdf) |
+| 📋 **Project Tracking (Jira)** | Sprint tracking screenshots & complete task audit | [View Jira Tasks PDF](https://github.com/EAD-Labs/Group-5_2026/blob/main/Jira-tasks.pdf) • [Evidence Section](#project-management--jira-tracking-evidence) |
 
 ---
 
@@ -146,7 +146,7 @@ All engineering milestones, sprint backlogs, bug fixes, and client acceptance cr
 #### Sprint Board Page 2: Tasks AJ-1 through AJ-19 (Foundational Architecture & Requirements)
 ![Jira Tasks Sprint Board Page 2](assets/tracking/jira_tasks_page_2.png)
 
-> 📥 **Complete Audit Trail:** Download the full exported Jira project PDF report: [`Jira-tasks.pdf`](./Jira-tasks.pdf).
+> 📥 **Complete Audit Trail:** View the full exported Jira tasks report directly on GitHub: [Jira-tasks.pdf](https://github.com/EAD-Labs/Group-5_2026/blob/main/Jira-tasks.pdf) (or download local [`Jira-tasks.pdf`](./Jira-tasks.pdf)).
 
 ---
 
